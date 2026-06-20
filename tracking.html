@@ -1,0 +1,65 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>draw — M1 tracking dev route (throwaway)</title>
+    <style>
+      :root {
+        color-scheme: dark;
+        --bg: #0d0f14;
+        --line: #2a3140;
+        --text: #e6e9ef;
+        --muted: #8b93a3;
+      }
+      * {
+        box-sizing: border-box;
+      }
+      html,
+      body {
+        margin: 0;
+        min-height: 100%;
+        background: radial-gradient(1200px 800px at 50% 20%, #141925, var(--bg));
+        color: var(--text);
+        font: 14px/1.45 system-ui, -apple-system, Segoe UI, Roboto, sans-serif;
+      }
+      #app {
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        gap: 16px;
+        padding: 24px;
+      }
+      .status {
+        color: var(--muted);
+      }
+      .preview {
+        border: 1px solid var(--line);
+        border-radius: 12px;
+        overflow: hidden;
+        background: #000;
+        width: 320px;
+      }
+      .preview video {
+        width: 100%;
+        display: block;
+        /* mirror for natural UX; does not affect the pose matrix math */
+        transform: scaleX(-1);
+      }
+      .readout {
+        background: rgba(22, 26, 34, 0.92);
+        border: 1px solid var(--line);
+        border-radius: 10px;
+        padding: 14px 18px;
+        font-variant-numeric: tabular-nums;
+        font-size: 14px;
+        margin: 0;
+        min-width: 180px;
+      }
+    </style>
+  </head>
+  <body>
+    <div id="app"></div>
+    <script type="module" src="/src/dev/trackingDev.ts"></script>
+  </body>
+</html>

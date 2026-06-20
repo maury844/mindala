@@ -1,5 +1,14 @@
 # IMPLEMENTATION PLAN — Phase A (head-controlled floral mandala coloring)
 
+## Progress tracker (updated 2026-06-20)
+- ✅ M0 — Scaffold & tooling (done): Vite React TS app, tooling, config constants, and engine boundary are in place.
+- ✅ M1 — Engine: face tracking (done): MediaPipe FaceTracker, pure pose extraction, unit tests, and `/tracking.html` dev harness are in place.
+- ⏳ M2 — Engine: velocity cursor (pending)
+- ⏳ M3 — Engine: mandala model + generator + first asset (pending)
+- ⏳ M4 — Engine: dwell controller (pending)
+- ⏳ M5 — React shell (pending)
+- ⏳ M6 — Integration polish & verify (pending)
+
 > **Audience: a dev agent picking this up cold.** Execute milestones in order;
 > each task has a Goal, technical Approach, Files, and **Acceptance Criteria (AC)**
 > you can verify. Do not change locked decisions — see [DESIGN.md](DESIGN.md). All
@@ -12,6 +21,8 @@ _Created 2026-06-20. Scope: Phase A (the "ridiculous toy", built clean for B)._
 ---
 
 ## How to use this doc
+- Start with the **Progress tracker** above to see the current handoff state before reading detailed milestone sections.
+- When you complete or partially complete a milestone, update the tracker first, then add or adjust the milestone status note below.
 - Work **M0 → M6 in order**; later milestones depend on earlier ones.
 - A task is **Done** only when **every AC passes** and the global Definition of Done holds.
 - Sizes: **S** ≈ <½ day, **M** ≈ ~1 day, **L** ≈ ~2 days (rough, for sequencing only).
@@ -45,6 +56,8 @@ Onboarding polish / calibration overlay, accounts/saving, sharing/export, sound,
 ---
 
 ## M0 — Scaffold & tooling  ·  size S
+**Status:** Done 2026-06-20. Validation: `npm run lint`, `npm run typecheck`, `npm test`, and `npm run build` passed.
+
 **Goal:** a running Vite React-TS app with the engine boundary enforced and constants centralized.
 
 **Approach:** `npm create vite@latest . -- --template react-ts`. Add deps. Create folder structure from DISCOVERY §6. Add ESLint rule banning React imports in `engine/` (`import/no-restricted-paths` or a `no-restricted-imports` override scoped to `src/engine/**`). Add Vitest. Create `engine/config.ts` with the DISCOVERY §4 constants as `as const`.
@@ -58,6 +71,8 @@ Onboarding polish / calibration overlay, accounts/saving, sharing/export, sound,
 - `engine/config.ts` exports every constant from DISCOVERY §4 with the exact values; no other file redefines them.
 
 ## M1 — Engine: face tracking  ·  size M  ·  depends M0
+**Status:** Done 2026-06-20. Added `FaceTracker`, pure `matToEuler` extraction, 7 Vitest pose tests, and `/tracking.html` webcam debug harness.
+
 **Goal:** per-frame head pose + blendshapes from the webcam, framework-free.
 
 **Approach:** `engine/tracking/faceTracker.ts` wraps `FaceLandmarker` (`outputFacialTransformationMatrixes: true`, `outputFaceBlendshapes: true`, `runningMode: 'VIDEO'`, `numFaces: 1`, GPU delegate; model + wasm URLs as constants, overridable). `engine/tracking/pose.pure.ts` = `matToEuler(data: Float32Array)` using the **column-major / THREE 'YXZ'** decomposition from DISCOVERY §4. Tracker exposes `detect(video, nowMs) → { hasFace, yaw, pitch, roll, jawOpen }`; only calls `detectForVideo` when `video.currentTime` advanced.

@@ -4,14 +4,17 @@ Webapp where you color mandalas **hands-free, steering the cursor with your head
 
 ## Read these before doing anything
 1. **[DISCOVERY.md](DISCOVERY.md)** — START HERE. Orientation, validated constants, architecture, build order, gotchas.
-2. **[IMPLEMENTATION-PLAN.md](IMPLEMENTATION-PLAN.md)** — the build spec: milestones M0–M6, each with goals, technical approach & **acceptance criteria**. This is what a dev agent executes.
+2. **[IMPLEMENTATION-PLAN.md](IMPLEMENTATION-PLAN.md)** — the build spec: milestones M0–M6, each with goals, technical approach & **acceptance criteria**. Start with the top **Progress tracker** so you can pick up the current handoff state without rereading the full document.
 3. **[DESIGN.md](DESIGN.md)** — decision log (11 locked decisions + deferred questions).
 4. **[MANDALA-SPEC.md](MANDALA-SPEC.md)** — the SVG asset contract.
 
-## Status
-Planning + de-risking **done**. Two throwaway spikes (`spike/index.html`, `spike/dwell.html`) **validated the core mechanics on real hardware**. Validated tuning lives in DISCOVERY §4.
+## Agent handoff rule
+Before starting implementation work, check the top **Progress tracker** in [IMPLEMENTATION-PLAN.md](IMPLEMENTATION-PLAN.md). When you finish, partially finish, defer, or unblock a milestone, update that tracker first and keep the milestone's local status note consistent.
 
-**Next action:** execute **[IMPLEMENTATION-PLAN.md](IMPLEMENTATION-PLAN.md) M0** (scaffold) → M6. Real app: React + Vite + TypeScript, **React-free `engine/`**, first **floral, 8-fold** mandala (author one tagged wedge + rotate-copy ×8).
+## Status
+Planning + de-risking **done**. M0 scaffold/tooling and M1 face tracking are **done**. Two throwaway spikes (`spike/index.html`, `spike/dwell.html`) **validated the core mechanics on real hardware**. Validated tuning lives in DISCOVERY §4.
+
+**Next action:** execute **[IMPLEMENTATION-PLAN.md](IMPLEMENTATION-PLAN.md) M2** (velocity cursor), then continue M3 → M6. Real app: React + Vite + TypeScript, **React-free `engine/`**, first **floral, 8-fold** mandala (author one tagged wedge + rotate-copy ×8).
 
 ## Hard rules
 - `engine/` imports **nothing** from React (portability for the mobile pivot).

@@ -1,0 +1,24 @@
+{
+  "id": "floral-01",
+  "title": "Floral 8",
+  "symmetryOrder": 8,
+  "paper": "#f4efe6",
+  "palettes": [
+    {
+      "name": "Bloom",
+      "colors": [
+        "#f9b4cb",
+        "#ec7396",
+        "#c84e78",
+        "#f7b267",
+        "#f4904f",
+        "#e1672e",
+        "#a8cf9f",
+        "#6aa873",
+        "#2f7d5b"
+      ]
+    }
+  ],
+  "author": "you",
+  "license": "CC0"
+}

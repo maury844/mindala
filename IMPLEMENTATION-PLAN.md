@@ -4,7 +4,7 @@
 - ✅ M0 — Scaffold & tooling (done): Vite React TS app, tooling, config constants, and engine boundary are in place.
 - ✅ M1 — Engine: face tracking (done): MediaPipe FaceTracker, pure pose extraction, unit tests, and `/tracking.html` dev harness are in place.
 - ✅ M2 — Engine: velocity cursor (done): `VelocityCursor` (EMA → neutral → deadzone → expo → integrate → clamp) + exported pure `shape()`, 13 Vitest cursor tests.
-- ⏳ M3 — Engine: mandala model + generator + first asset (pending)
+- ✅ M3 — Engine: mandala model + generator + first asset (done): `types`, pure `generate()`/`describeRegions()`, the authored floral 8-fold wedge, `floral01` doc + `meta.json`, and the web-only `webView` adapter. 18 new Vitest tests; rendered ACs (8-fold/floral, no overlap, ≥40px regions) verified in-browser via `/mandala.html`.
 - ⏳ M4 — Engine: dwell controller (pending)
 - ⏳ M5 — React shell (pending)
 - ⏳ M6 — Integration polish & verify (pending)
@@ -100,6 +100,8 @@ Onboarding polish / calibration overlay, accounts/saving, sharing/export, sound,
 - First valid frame after construction or `recenter()` sets neutral and yields ~zero velocity.
 
 ## M3 — Engine: mandala model + generator + first asset  ·  size L  ·  depends M0
+**Status:** Done 2026-06-20. `engine/mandala/`: `types.ts`, pure `generateMandala.pure.ts` (`generate` + `describeRegions` + `buildMandalaDoc`), the authored `floralWedge.ts` (4 motif bands — round petal · heart · pointed leaf · outer crown — + center disc, geometry computed from named radii/half-widths so the tiling is checkable), `floral01.ts` + `assets/mandalas/floral-01/meta.json` (9-color "Bloom" palette), and web-only `webView.ts` (`mountMandala`/`resolveTargetAt`/`fillGroup`/`eraseGroup`). 18 new tests. Rendered ACs verified at `/mandala.html`: no region overlap (≤1 hit/point), smallest inscribed region ≥45px @600 (≥40 target), visibly 8-fold + floral. `typecheck`/`lint`/`test`/`build` green; engine boundary clean. Note: tiling is guaranteed by construction (disjoint radial bands, each motif within ±22.5°), so gaps between motifs read as background — overlap can't occur.
+
 **Goal:** a spec-compliant floral 8-fold mandala produced by rotate-copying one authored wedge.
 
 **Approach:**

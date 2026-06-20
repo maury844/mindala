@@ -1,0 +1,62 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>draw — M3 mandala dev route (throwaway)</title>
+    <style>
+      :root {
+        color-scheme: dark;
+        --bg: #0d0f14;
+        --line: #2a3140;
+        --text: #e6e9ef;
+        --muted: #8b93a3;
+        --render: 600px;
+      }
+      * {
+        box-sizing: border-box;
+      }
+      html,
+      body {
+        margin: 0;
+        min-height: 100%;
+        background: radial-gradient(1200px 800px at 50% 20%, #141925, var(--bg));
+        color: var(--text);
+        font: 14px/1.45 system-ui, -apple-system, Segoe UI, Roboto, sans-serif;
+      }
+      #app {
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        gap: 16px;
+        padding: 24px;
+      }
+      .mandala {
+        width: var(--render);
+        height: var(--render);
+        border: 1px solid var(--line);
+        border-radius: 12px;
+        overflow: hidden;
+      }
+      .mandala svg {
+        width: 100%;
+        height: 100%;
+        display: block;
+      }
+      .readout {
+        background: rgba(22, 26, 34, 0.92);
+        border: 1px solid var(--line);
+        border-radius: 10px;
+        padding: 14px 18px;
+        font-variant-numeric: tabular-nums;
+        font-size: 13px;
+        margin: 0;
+        min-width: var(--render);
+      }
+    </style>
+  </head>
+  <body>
+    <div id="app"></div>
+    <script type="module" src="/src/dev/mandalaDev.ts"></script>
+  </body>
+</html>

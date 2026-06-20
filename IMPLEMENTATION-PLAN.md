@@ -3,7 +3,7 @@
 ## Progress tracker (updated 2026-06-20)
 - ✅ M0 — Scaffold & tooling (done): Vite React TS app, tooling, config constants, and engine boundary are in place.
 - ✅ M1 — Engine: face tracking (done): MediaPipe FaceTracker, pure pose extraction, unit tests, and `/tracking.html` dev harness are in place.
-- ⏳ M2 — Engine: velocity cursor (pending)
+- ✅ M2 — Engine: velocity cursor (done): `VelocityCursor` (EMA → neutral → deadzone → expo → integrate → clamp) + exported pure `shape()`, 13 Vitest cursor tests.
 - ⏳ M3 — Engine: mandala model + generator + first asset (pending)
 - ⏳ M4 — Engine: dwell controller (pending)
 - ⏳ M5 — React shell (pending)
@@ -85,6 +85,8 @@ Onboarding polish / calibration overlay, accounts/saving, sharing/export, sound,
 - `pose.pure.ts` imports nothing (no DOM, no React, no mediapipe).
 
 ## M2 — Engine: velocity cursor  ·  size M  ·  depends M1
+**Status:** Done 2026-06-20. Added `engine/cursor/velocityCursor.ts` (`VelocityCursor` class + exported pure `shape()`) and 13 Vitest tests. All §4 cursor constants read from `config.ts`; no React/DOM imports. `typecheck`/`lint`/`test`/`build` green.
+
 **Goal:** convert pose → screen cursor with the validated feel.
 
 **Approach:** `engine/cursor/velocityCursor.ts`: EMA smoothing (`SMOOTH`), `neutral` capture + `recenter()`, dead zone (`DEADZONE`), expo shaping (`EXPO`, `MAX_ANGLE`, `SENS`), `INVERT_X/Y`, integrate to position clamped to viewport. `update(rawYaw, rawPitch, dt, viewport) → { x, y, speed }`. Keep the `shape(delta)` function pure and exported for tests.

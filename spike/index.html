@@ -1,0 +1,322 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>Head-Cursor Feel Spike</title>
+<style>
+  :root {
+    --bg: #0d0f14;
+    --panel: #161a22;
+    --line: #2a3140;
+    --text: #e6e9ef;
+    --muted: #8b93a3;
+    --accent: #6ee7b7;
+    --accent2: #f0abfc;
+  }
+  * { box-sizing: border-box; }
+  html, body {
+    margin: 0; height: 100%; overflow: hidden;
+    background: radial-gradient(1200px 800px at 50% 20%, #141925, var(--bg));
+    color: var(--text);
+    font: 14px/1.45 system-ui, -apple-system, Segoe UI, Roboto, sans-serif;
+    user-select: none;
+  }
+  #stage { position: fixed; inset: 0; }
+
+  /* the cursor dot */
+  #dot {
+    position: fixed; top: 0; left: 0;
+    width: 28px; height: 28px; margin: -14px 0 0 -14px;
+    border-radius: 50%;
+    background: radial-gradient(circle at 35% 35%, #fff, var(--accent) 60%, #0b8c5f);
+    box-shadow: 0 0 18px 4px rgba(110,231,183,.55);
+    pointer-events: none;
+    transition: transform .05s linear;
+    z-index: 5;
+  }
+  #dot.clutch {
+    background: radial-gradient(circle at 35% 35%, #fff, var(--accent2) 60%, #a21caf);
+    box-shadow: 0 0 26px 8px rgba(240,171,252,.7);
+    width: 40px; height: 40px; margin: -20px 0 0 -20px;
+  }
+
+  /* corner targets to test "can you park it" */
+  .target {
+    position: fixed; width: 70px; height: 70px; border-radius: 50%;
+    border: 2px dashed var(--line); z-index: 2;
+    display: grid; place-items: center; color: var(--muted); font-size: 11px;
+  }
+  .target.tl { top: 24px; left: 24px; }
+  .target.tr { top: 24px; right: 24px; }
+  .target.bl { bottom: 24px; left: 24px; }
+  .target.br { bottom: 24px; right: 24px; }
+  .target.cc { top: 50%; left: 50%; transform: translate(-50%,-50%); }
+
+  /* control panel */
+  #panel {
+    position: fixed; top: 16px; left: 50%; transform: translateX(-50%);
+    width: min(560px, 92vw);
+    background: rgba(22,26,34,.92); border: 1px solid var(--line);
+    border-radius: 14px; padding: 14px 16px; z-index: 10;
+    backdrop-filter: blur(8px);
+    box-shadow: 0 10px 40px rgba(0,0,0,.45);
+  }
+  #panel h1 { font-size: 14px; margin: 0 0 4px; letter-spacing: .2px; }
+  #panel .sub { color: var(--muted); font-size: 12px; margin-bottom: 10px; }
+  .row { display: flex; align-items: center; gap: 10px; margin: 8px 0; }
+  .row label { width: 110px; color: var(--muted); font-size: 12px; }
+  .row input[type=range] { flex: 1; accent-color: var(--accent); }
+  .row .val { width: 46px; text-align: right; font-variant-numeric: tabular-nums; color: var(--text); }
+  .btns { display: flex; gap: 8px; flex-wrap: wrap; margin-top: 6px; }
+  button, .toggle {
+    background: #222936; color: var(--text); border: 1px solid var(--line);
+    border-radius: 9px; padding: 7px 11px; font-size: 12px; cursor: pointer;
+  }
+  button:hover { border-color: var(--accent); }
+  .toggle.on { border-color: var(--accent); color: var(--accent); }
+  #recenter { background: var(--accent); color: #06281c; border: none; font-weight: 600; }
+
+  /* jaw / clutch bar */
+  #jawWrap { margin-top: 10px; }
+  #jawBarBg { height: 12px; background: #0e1219; border: 1px solid var(--line); border-radius: 8px; overflow: hidden; }
+  #jawBar { height: 100%; width: 0%; background: linear-gradient(90deg, #f0abfc, #a21caf); transition: width .05s linear; }
+  #jawWrap .lbl { display: flex; justify-content: space-between; color: var(--muted); font-size: 11px; margin-bottom: 4px; }
+
+  /* webcam preview + readouts */
+  #cam {
+    position: fixed; bottom: 16px; right: 16px; width: 220px; z-index: 10;
+    border: 1px solid var(--line); border-radius: 12px; overflow: hidden;
+    background: #000; box-shadow: 0 8px 30px rgba(0,0,0,.5);
+  }
+  #video { width: 100%; display: block; transform: scaleX(-1); }
+  #readout {
+    position: fixed; bottom: 16px; left: 16px; z-index: 10;
+    background: rgba(22,26,34,.92); border: 1px solid var(--line); border-radius: 10px;
+    padding: 10px 12px; font-variant-numeric: tabular-nums; font-size: 12px; min-width: 180px;
+  }
+  #readout div { display: flex; justify-content: space-between; gap: 16px; }
+  #readout .k { color: var(--muted); }
+  #status {
+    position: fixed; top: 50%; left: 50%; transform: translate(-50%,-50%);
+    z-index: 20; color: var(--muted); text-align: center; max-width: 80vw;
+  }
+  #status.hidden { display: none; }
+  kbd { background:#222936; border:1px solid var(--line); border-radius:5px; padding:1px 5px; font-size:11px; }
+</style>
+</head>
+<body>
+  <div id="stage">
+    <div class="target tl">corner</div>
+    <div class="target tr">corner</div>
+    <div class="target bl">corner</div>
+    <div class="target br">corner</div>
+    <div class="target cc">center</div>
+    <div id="dot"></div>
+  </div>
+
+  <div id="panel">
+    <h1>Head-Cursor Feel Spike</h1>
+    <div class="sub">Turn head L/R → move X · nod up/down → move Y · open mouth → clutch. Rest your head: dot should stop.</div>
+
+    <div class="row">
+      <label>Sensitivity</label>
+      <input id="sens" type="range" min="200" max="3000" step="50" value="1200" />
+      <span class="val" id="sensV">1200</span>
+    </div>
+    <div class="row">
+      <label>Dead zone (°)</label>
+      <input id="dz" type="range" min="0" max="12" step="0.5" value="3" />
+      <span class="val" id="dzV">3.0</span>
+    </div>
+    <div class="row">
+      <label>Smoothing</label>
+      <input id="smooth" type="range" min="0" max="0.95" step="0.05" value="0.6" />
+      <span class="val" id="smoothV">0.60</span>
+    </div>
+    <div class="row">
+      <label>Expo</label>
+      <input id="expo" type="range" min="1" max="3" step="0.1" value="1.7" />
+      <span class="val" id="expoV">1.7</span>
+    </div>
+
+    <div class="btns">
+      <button id="recenter">Recenter (space)</button>
+      <button class="toggle on" id="invX">Invert X</button>
+      <button class="toggle" id="invY">Invert Y</button>
+    </div>
+
+    <div id="jawWrap">
+      <div class="lbl"><span>mouth-open (jawOpen)</span><span id="jawPct">0%</span></div>
+      <div id="jawBarBg"><div id="jawBar"></div></div>
+    </div>
+  </div>
+
+  <div id="cam"><video id="video" autoplay playsinline muted></video></div>
+
+  <div id="readout">
+    <div><span class="k">fps</span><span id="r_fps">–</span></div>
+    <div><span class="k">yaw Δ</span><span id="r_yaw">–</span></div>
+    <div><span class="k">pitch Δ</span><span id="r_pitch">–</span></div>
+    <div><span class="k">face</span><span id="r_face">–</span></div>
+  </div>
+
+  <div id="status">Loading model & requesting camera…<br/><span style="font-size:12px">(allow camera access when prompted)</span></div>
+
+<script type="module">
+import { FaceLandmarker, FilesetResolver } from "https://cdn.jsdelivr.net/npm/@mediapipe/tasks-vision@0.10.20";
+
+const V = "https://cdn.jsdelivr.net/npm/@mediapipe/tasks-vision@0.10.20/wasm";
+const MODEL = "https://storage.googleapis.com/mediapipe-models/face_landmarker/face_landmarker/float16/1/face_landmarker.task";
+
+const els = {
+  status: document.getElementById('status'),
+  video: document.getElementById('video'),
+  dot: document.getElementById('dot'),
+  jawBar: document.getElementById('jawBar'),
+  jawPct: document.getElementById('jawPct'),
+  r_fps: document.getElementById('r_fps'),
+  r_yaw: document.getElementById('r_yaw'),
+  r_pitch: document.getElementById('r_pitch'),
+  r_face: document.getElementById('r_face'),
+};
+
+// ---- tunables (wired to sliders) ----
+const cfg = { sens: 1200, dz: 3, smooth: 0.6, expo: 1.7, invX: true, invY: false, jawThresh: 0.5 };
+function bindSlider(id, key, fmt = v => v) {
+  const el = document.getElementById(id), out = document.getElementById(id + 'V');
+  const apply = () => { cfg[key] = parseFloat(el.value); out.textContent = fmt(cfg[key]); };
+  el.addEventListener('input', apply); apply();
+}
+bindSlider('sens', 'sens', v => v.toFixed(0));
+bindSlider('dz', 'dz', v => v.toFixed(1));
+bindSlider('smooth', 'smooth', v => v.toFixed(2));
+bindSlider('expo', 'expo', v => v.toFixed(1));
+function bindToggle(id, key) {
+  const el = document.getElementById(id);
+  el.addEventListener('click', () => { cfg[key] = !cfg[key]; el.classList.toggle('on', cfg[key]); });
+}
+bindToggle('invX', 'invX');
+bindToggle('invY', 'invY');
+
+// ---- head-pose state ----
+let neutralYaw = null, neutralPitch = null;     // calibration reference
+let smYaw = 0, smPitch = 0, haveAngles = false; // smoothed angles
+let posX = window.innerWidth / 2, posY = window.innerHeight / 2;
+let recenterPending = true;                       // auto-recenter on first valid frame
+
+function recenter() { recenterPending = true; }
+document.getElementById('recenter').addEventListener('click', recenter);
+window.addEventListener('keydown', e => { if (e.code === 'Space') { e.preventDefault(); recenter(); } });
+
+// Decompose MediaPipe's 4x4 transform (column-major) → yaw/pitch/roll (deg).
+// Uses THREE.js 'YXZ' convention: x=pitch (nod), y=yaw (turn), z=roll (tilt).
+function matToEuler(te) {
+  const m13 = te[8], m23 = te[9], m33 = te[10], m21 = te[1], m22 = te[5];
+  const pitch = Math.asin(Math.max(-1, Math.min(1, -m23)));
+  let yaw, roll;
+  if (Math.abs(m23) < 0.9999999) { yaw = Math.atan2(m13, m33); roll = Math.atan2(m21, m22); }
+  else { yaw = Math.atan2(-te[2], te[0]); roll = 0; }
+  const d = 180 / Math.PI;
+  return { yaw: yaw * d, pitch: pitch * d, roll: roll * d };
+}
+
+// expo-shaped velocity from an angle delta (deg) past the dead zone
+const MAX_ANGLE = 22; // deg that maps to full speed
+function shape(delta) {
+  const s = Math.sign(delta);
+  const mag = Math.max(0, Math.abs(delta) - cfg.dz);
+  const norm = Math.min(mag / MAX_ANGLE, 1);
+  return s * Math.pow(norm, cfg.expo) * cfg.sens; // px/sec
+}
+
+let landmarker = null, lastVideoTime = -1, lastResult = null;
+let lastT = performance.now(), fps = 0;
+
+function frame() {
+  const now = performance.now();
+  const dt = Math.min(0.05, (now - lastT) / 1000); // clamp dt for tab-switch spikes
+  lastT = now;
+  fps += ((1 / Math.max(dt, 1e-3)) - fps) * 0.1;
+
+  // run detection only on new camera frames
+  if (landmarker && els.video.readyState >= 2 && els.video.currentTime !== lastVideoTime) {
+    lastVideoTime = els.video.currentTime;
+    try { lastResult = landmarker.detectForVideo(els.video, now); } catch (_) {}
+  }
+
+  const mats = lastResult && lastResult.facialTransformationMatrixes;
+  const hasFace = mats && mats.length > 0;
+
+  if (hasFace) {
+    const { yaw, pitch } = matToEuler(mats[0].data);
+    if (!haveAngles) { smYaw = yaw; smPitch = pitch; haveAngles = true; }
+    smYaw += (yaw - smYaw) * (1 - cfg.smooth);
+    smPitch += (pitch - smPitch) * (1 - cfg.smooth);
+
+    if (recenterPending) { neutralYaw = smYaw; neutralPitch = smPitch; recenterPending = false; }
+
+    let dYaw = smYaw - neutralYaw;
+    let dPitch = smPitch - neutralPitch;
+    let vx = shape(dYaw) * (cfg.invX ? -1 : 1);
+    let vy = shape(dPitch) * (cfg.invY ? -1 : 1);
+
+    posX = Math.max(0, Math.min(window.innerWidth, posX + vx * dt));
+    posY = Math.max(0, Math.min(window.innerHeight, posY + vy * dt));
+
+    els.r_yaw.textContent = dYaw.toFixed(1) + '°';
+    els.r_pitch.textContent = dPitch.toFixed(1) + '°';
+  }
+
+  // jaw / clutch
+  let jaw = 0;
+  const bs = lastResult && lastResult.faceBlendshapes;
+  if (bs && bs.length) {
+    const c = bs[0].categories.find(c => c.categoryName === 'jawOpen');
+    if (c) jaw = c.score;
+  }
+  els.jawBar.style.width = Math.min(100, jaw * 100 / 0.7) + '%';
+  els.jawPct.textContent = Math.round(jaw * 100) + '%';
+  els.dot.classList.toggle('clutch', jaw > cfg.jawThresh);
+
+  els.dot.style.transform = `translate(${posX}px, ${posY}px)`;
+  els.r_fps.textContent = fps.toFixed(0);
+  els.r_face.textContent = hasFace ? 'yes' : 'no';
+
+  requestAnimationFrame(frame);
+}
+
+async function init() {
+  // 1) camera
+  let stream;
+  try {
+    stream = await navigator.mediaDevices.getUserMedia({ video: { width: 640, height: 480, facingMode: 'user' }, audio: false });
+  } catch (e) {
+    els.status.innerHTML = 'Camera blocked.<br/>Allow camera access and reload.<br/><span style="font-size:12px">' + e + '</span>';
+    return;
+  }
+  els.video.srcObject = stream;
+  await new Promise(r => els.video.onloadedmetadata = r);
+  await els.video.play();
+
+  // 2) model
+  try {
+    const fileset = await FilesetResolver.forVisionTasks(V);
+    landmarker = await FaceLandmarker.createFromOptions(fileset, {
+      baseOptions: { modelAssetPath: MODEL, delegate: 'GPU' },
+      runningMode: 'VIDEO', numFaces: 1,
+      outputFaceBlendshapes: true,
+      outputFacialTransformationMatrixes: true,
+    });
+  } catch (e) {
+    els.status.innerHTML = 'Model failed to load.<br/><span style="font-size:12px">' + e + '</span>';
+    return;
+  }
+
+  els.status.classList.add('hidden');
+  requestAnimationFrame(frame);
+}
+init();
+</script>
+</body>
+</html>

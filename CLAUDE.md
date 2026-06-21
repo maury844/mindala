@@ -12,9 +12,9 @@ Webapp where you color mandalas **hands-free, steering the cursor with your head
 Before starting implementation work, check the top **Progress tracker** in [IMPLEMENTATION-PLAN.md](IMPLEMENTATION-PLAN.md). When you finish, partially finish, defer, or unblock a milestone, update that tracker first and keep the milestone's local status note consistent.
 
 ## Status
-Planning + de-risking **done**. M0 scaffold/tooling, M1 face tracking, M2 velocity cursor, M3 mandala model + generator + first floral asset, and M4 dwell controller (pure state machine) are **done**. Two throwaway spikes (`spike/index.html`, `spike/dwell.html`) **validated the core mechanics on real hardware**. Validated tuning lives in DISCOVERY §4.
+Planning + de-risking **done**. M0–M4 (engine: tracking, cursor, mandala+generator+first asset, dwell controller) **done**. **M5 (React shell) done** — `useEngine` drives the single rAF loop and the full app runs at `vite dev` → `/` (camera gate → 8-fold floral mandala + palette dock + head cursor). **M6 (polish) mostly done** — recenter (button + Space), first-use + face-lost hints, responsive centering, and `README.md` are in. Two throwaway spikes (`spike/index.html`, `spike/dwell.html`) **validated the core mechanics on real hardware**; validated tuning lives in DISCOVERY §4.
 
-**Next action:** execute **[IMPLEMENTATION-PLAN.md](IMPLEMENTATION-PLAN.md) M5** (React shell: `useEngine` rAF loop wiring tracker → cursor → `webView.resolveTargetAt` → `dwellController` → apply events; camera gate; palette dock), then M6 (polish & verify). The whole engine (`src/engine/`) is now in place and unit-tested; the first floral 8-fold asset renders at `vite dev` → `/mandala.html`.
+**Next action:** **the only thing left for Phase A is a human running the M6 manual verify checklist at a real webcam** (steer→park→fill→mirror, swatch/eraser dwell, recenter, ≥20 fps) — the headless checks all pass but feel can only be judged on hardware. After that passes, resume the deferred app-shell grilling (DESIGN §7: onboarding, edge cases, B-phase visuals, sharing, mobile). Run the app with `npm run dev`.
 
 ## Hard rules
 - `engine/` imports **nothing** from React (portability for the mobile pivot).

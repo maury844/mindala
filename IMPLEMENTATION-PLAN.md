@@ -6,8 +6,8 @@
 - ✅ M2 — Engine: velocity cursor (done): `VelocityCursor` (EMA → neutral → deadzone → expo → integrate → clamp) + exported pure `shape()`, 13 Vitest cursor tests.
 - ✅ M3 — Engine: mandala model + generator + first asset (done): `types`, pure `generate()`/`describeRegions()`, the authored floral 8-fold wedge, `floral01` doc + `meta.json`, and the web-only `webView` adapter. 18 new Vitest tests; rendered ACs (8-fold/floral, no overlap, ≥40px regions) verified in-browser via `/mandala.html`.
 - ✅ M4 — Engine: dwell controller (done): pure `dwellController.pure.ts` (`DwellController` class — must-stop gate, region-keyed progress, decay-on-leave, disarm-after-commit) emitting `selectColor`/`fill`/`erase` events; the canonical `DwellTarget` type now lives here and `webView` re-exports it. 15 new Vitest tests cover every AC.
-- ⏳ M5 — React shell (pending)
-- ⏳ M6 — Integration polish & verify (pending)
+- ✅ M5 — React shell (done): `useEngine` owns the single rAF loop (tracker → cursor → `resolveTargetAt` → dwell → apply events) writing per-frame visuals to refs (no React re-renders); `App` composes `CameraGate` / `Stage` / `Cursor` / `PaletteDock` / `CameraPreview` / `DevOverlay`. Engine boundary lint clean; typecheck/lint/test (53)/build green. Verified headlessly in-browser: gate renders over the mounted 8-fold mandala (33 regions), dock shows 9 swatches + eraser, selection state machine (color ↔ eraser, single-active) works, cursor layer is `pointer-events:none`, `d` toggles the overlay, mobile layout centers, no console errors. **The camera-driven end-to-end (steer→fill→mirror→erase, fps, memory) needs a human at a webcam — that is M6's manual checklist.**
+- ◑ M6 — Integration polish & verify (mostly done; manual feel-verify pending hardware): recenter (button + Space), first-use hint, face-lost handling (freeze cursor + "no face" hint), responsive centering, and the README (run/build + secure-context) are all in. Constants are read from `config.ts` (single source). **Remaining: a human runs the manual verify checklist at a webcam** (the spike philosophy — "the only judge of feels good is a human").
 
 > **Audience: a dev agent picking this up cold.** Execute milestones in order;
 > each task has a Goal, technical Approach, Files, and **Acceptance Criteria (AC)**
@@ -137,6 +137,8 @@ Onboarding polish / calibration overlay, accounts/saving, sharing/export, sound,
 - Controller file imports nothing DOM/React.
 
 ## M5 — React shell  ·  size L  ·  depends M1–M4
+**Status:** Done 2026-06-20. `app/hooks/useEngine.ts` owns the single rAF loop and is the only place the shell touches `engine/`. Per-frame visuals (cursor dot + dwell ring + dev overlay) are written straight to refs so the 60 fps loop never re-renders React; only low-frequency state (`phase`, `hasFace`, `fps`, `activeColor`, `hoverSwatch`) is mirrored into React (on-change / throttled). `activeColor` lives in a ref (loop source of truth) mirrored to state for the dock highlight; the `selectColor` dwell event and the mouse-fallback swatch click both go through `setActiveColor`. Camera is **user-triggered** from `CameraGate` (keeps `getUserMedia` in a gesture, sidesteps StrictMode races); teardown (raf cancel, tracker.close, stream stop, view.unmount) runs on unmount. Face-loss freezes the cursor and forces `speed=Infinity` so it never paints. Components (`Stage`/`Cursor`/`PaletteDock`/`CameraPreview`/`DevOverlay`) are pure presentation. `typecheck`/`lint`/`test`/`build` green; engine boundary clean. Headless browser verification done (see tracker); webcam feel-verify is M6. Note: a stale rogue `vite` process was occupying :5173 with no file-watching — if HMR ever looks frozen, kill the orphan node process and `preview_start` a fresh one.
+
 **Goal:** the full app — camera gate, render loop, cursor, palette dock, coloring.
 
 **Approach:**
@@ -155,6 +157,8 @@ Onboarding polish / calibration overlay, accounts/saving, sharing/export, sound,
 - Engine boundary lint still clean.
 
 ## M6 — Integration polish & verify  ·  size S  ·  depends M5
+**Status:** Mostly done 2026-06-20 (landed alongside M5). In: Recenter (button + Space), first-use hint ("turn your head to move · relax to paint", auto-fades), face-lost handling (cursor freezes + dims, "no face" hint), responsive centering (mandala sized `min(86vmin,760px)` in a grid; verified at 375px), and `README.md` (run/build + camera/secure-context requirement). Feel constants are read from `config.ts` (the single source — nothing re-inlined). **Remaining (needs hardware): a human runs the manual verify checklist below at a real webcam** — that is the only outstanding gate for "Phase A complete". A reviewer should confirm steer→park→fill→mirror, swatch/eraser dwell, recenter, and ≥20 fps in normal lighting.
+
 **Goal:** feel-parity with the spikes; ship-ready Phase-A toy.
 
 **Approach:** confirm constants match DISCOVERY §4; add a "Recenter" affordance (button + spacebar) and an on-screen first-use hint ("turn your head to move · relax to paint"); handle face-lost (freeze cursor, show subtle "no face" hint); basic responsive centering of the mandala.

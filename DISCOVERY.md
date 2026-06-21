@@ -13,7 +13,8 @@ A **webapp where you color mandalas hands-free, moving the cursor with your head
 
 ## 1. Status (2026-06-20)
 - **Planning + de-risking complete.** The two riskiest mechanics are **validated on real hardware** via throwaway spikes.
-- **Next action: build the real app** (React + Vite + TS) and render the first floral mandala. *Not started yet.*
+- **The real app is built.** M0–M5 are done and M6 polish is mostly in: `npm run dev` → `/` boots the camera gate → 8-fold floral mandala + palette dock + head-driven cursor. Engine is React-free and unit-tested (53 tests); shell wiring is in `src/app/`.
+- **Next action: a human runs the M6 manual verify checklist at a real webcam** (steer→park→fill→mirror, swatch/eraser dwell, recenter, ≥20 fps) — the only Phase-A gate left, since headless checks all pass but feel needs hardware. See [IMPLEMENTATION-PLAN.md](IMPLEMENTATION-PLAN.md) M5/M6.
 - This was a `/grill-me` design session; decisions are logged in [DESIGN.md](DESIGN.md).
 
 ## 2. Document map — what to load, in order

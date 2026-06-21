@@ -153,6 +153,49 @@ body {
   font-size: 18px;
 }
 
+/* ── Mandala picker (top-left) ───────────────────────────────────────────── */
+.mandala-picker {
+  position: fixed;
+  left: 14px;
+  top: 14px;
+  z-index: 12;
+  display: flex;
+  gap: 8px;
+  padding: 8px;
+  border-radius: 14px;
+  background: rgba(22, 26, 34, 0.9);
+  border: 1px solid var(--line);
+  backdrop-filter: blur(8px);
+}
+.thumb {
+  width: 56px;
+  height: 56px;
+  padding: 0;
+  border-radius: 11px;
+  border: 2px solid transparent;
+  background: var(--bg);
+  cursor: pointer;
+  overflow: hidden;
+  display: block;
+  transition:
+    transform 0.1s ease,
+    border-color 0.1s ease,
+    box-shadow 0.1s ease;
+}
+.thumb:hover {
+  transform: scale(1.06);
+}
+.thumb.active {
+  border-color: var(--accent);
+  box-shadow: 0 0 0 2px rgba(110, 231, 183, 0.4);
+}
+.thumb-art,
+.thumb-art svg {
+  display: block;
+  width: 100%;
+  height: 100%;
+}
+
 /* ── Camera preview (corner self-view) ───────────────────────────────────── */
 .camera-preview {
   position: fixed;
@@ -238,6 +281,24 @@ body {
   color: #f6c177;
   border-color: #5a4a2a;
 }
+/* Weak-hardware warning — sits at the top so it never collides with the
+   bottom-center face/use hints. */
+.perf-hint {
+  position: fixed;
+  left: 50%;
+  top: 16px;
+  transform: translateX(-50%);
+  z-index: 12;
+  padding: 8px 15px;
+  border-radius: 999px;
+  font-size: 13px;
+  background: rgba(22, 26, 34, 0.92);
+  border: 1px solid #5a4a2a;
+  color: #f6c177;
+  backdrop-filter: blur(8px);
+  pointer-events: none;
+  animation: fade-in 0.4s ease;
+}
 @keyframes fade-in {
   from {
     opacity: 0;
@@ -287,14 +348,25 @@ body {
   font-size: 13px;
 }
 .gate-error {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
   margin: 0 0 18px;
-  padding: 10px 12px;
+  padding: 12px 14px;
   border-radius: 10px;
   background: rgba(176, 74, 58, 0.14);
   border: 1px solid rgba(176, 74, 58, 0.5);
   color: #f0a89a;
   font-size: 13px;
   line-height: 1.45;
+  text-align: left;
+}
+.gate-error-title {
+  color: #f6c0b4;
+  font-size: 14px;
+}
+.gate-error-detail {
+  color: #e3a193;
 }
 .gate-button {
   width: 100%;
@@ -328,4 +400,109 @@ body {
   to {
     transform: rotate(360deg);
   }
+}
+
+/* ── Calibration overlay (first-run "set your center") ───────────────────── */
+.calib {
+  position: fixed;
+  inset: 0;
+  z-index: 40;
+  display: grid;
+  place-items: center;
+  padding: 24px;
+  text-align: center;
+  background: rgba(7, 9, 13, 0.82);
+  backdrop-filter: blur(7px);
+  animation: fade-in 0.3s ease;
+}
+.calib-inner {
+  width: min(440px, 92vw);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+}
+/* The look-at target: a radial dwell-style ring with a center bullseye. The
+   loop writes the ring's conic-gradient fill each frame (no React re-render). */
+.calib-target {
+  position: relative;
+  width: 148px;
+  height: 148px;
+  margin-bottom: 26px;
+}
+.calib-ring {
+  position: absolute;
+  inset: 0;
+  border-radius: 50%;
+  background: conic-gradient(var(--accent) 0deg, rgba(255, 255, 255, 0.1) 0);
+  -webkit-mask: radial-gradient(transparent 58px, #000 59px);
+  mask: radial-gradient(transparent 58px, #000 59px);
+  will-change: background;
+}
+.calib-bull {
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  width: 16px;
+  height: 16px;
+  margin: -8px 0 0 -8px;
+  border-radius: 50%;
+  background: radial-gradient(circle at 35% 35%, #fff, var(--accent) 60%, #0b8c5f);
+  box-shadow: 0 0 16px 4px rgba(110, 231, 183, 0.5);
+  transition: opacity 0.2s ease;
+}
+/* The look-target dot yields to the countdown number once counting begins. */
+.calib-target:has(.calib-count:not(:empty)) .calib-bull {
+  opacity: 0;
+}
+.calib-count {
+  position: absolute;
+  inset: 0;
+  display: grid;
+  place-items: center;
+  font-size: 52px;
+  font-weight: 700;
+  font-variant-numeric: tabular-nums;
+  color: var(--accent);
+  text-shadow: 0 0 18px rgba(110, 231, 183, 0.55);
+}
+.calib-title {
+  margin: 0 0 10px;
+  font-size: 20px;
+}
+.calib-copy {
+  margin: 0 0 18px;
+  color: var(--muted);
+  font-size: 14px;
+  line-height: 1.55;
+}
+.calib-copy strong,
+.calib-copy em {
+  color: var(--text);
+  font-style: normal;
+}
+.calib-status-line {
+  margin: 0 0 14px;
+  font-size: 13px;
+  min-height: 1.2em;
+  color: var(--muted);
+}
+.calib-status-line[data-state='counting'] {
+  color: var(--accent);
+}
+.calib-status-line[data-state='noface'] {
+  color: #f6c177;
+}
+.calib-skip {
+  margin: 0;
+  color: var(--muted);
+  font-size: 12px;
+}
+.calib-skip kbd {
+  font-family: inherit;
+  font-size: 11px;
+  padding: 2px 7px;
+  border-radius: 6px;
+  background: var(--panel);
+  border: 1px solid var(--line);
+  color: var(--text);
 }

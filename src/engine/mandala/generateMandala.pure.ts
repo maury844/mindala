@@ -97,6 +97,30 @@ export function generate(
     }
   }
 
+  // Decor layer (MANDALA-SPEC §4/§8): non-fillable linework drawn ON TOP of the
+  // regions (so it reads like a coloring-book outline over the fills) and kept
+  // `pointer-events:none` so it never intercepts the cursor's `elementFromPoint`.
+  // Per-wedge decor is rotate-copied with the same transform as the regions;
+  // `staticDecor` is emitted once. Omitted entirely when a motif declares none,
+  // so existing decor-free assets are byte-for-byte unchanged.
+  let decor = ''
+  const rotatedDecor = motif.decor ?? []
+  const staticDecor = motif.staticDecor ?? []
+  if (rotatedDecor.length || staticDecor.length) {
+    let inner = ''
+    if (rotatedDecor.length) {
+      const joined = rotatedDecor.join('')
+      for (let k = 0; k < n; k++) {
+        inner += `<g transform="rotate(${angle(k, n)} ${CENTER} ${CENTER})">${joined}</g>`
+      }
+    }
+    inner += staticDecor.join('')
+    decor =
+      `<g data-layer="decor" pointer-events="none" fill="none" stroke="${stroke}" stroke-width="${strokeWidth}" stroke-linecap="round" stroke-linejoin="round">` +
+      inner +
+      `</g>`
+  }
+
   return (
     `<svg viewBox="0 0 ${VIEWBOX} ${VIEWBOX}" xmlns="http://www.w3.org/2000/svg">` +
     `<rect data-role="background" x="0" y="0" width="${VIEWBOX}" height="${VIEWBOX}" fill="${background}" pointer-events="none"/>` +
@@ -104,6 +128,7 @@ export function generate(
     wedges +
     center +
     `</g>` +
+    decor +
     `</svg>`
   )
 }

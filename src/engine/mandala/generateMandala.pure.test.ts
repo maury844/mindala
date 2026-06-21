@@ -5,6 +5,7 @@ import {
   buildMandalaDoc,
 } from './generateMandala.pure'
 import { floralMotif } from './floralWedge'
+import { compassMotif } from './compassWedge'
 
 const N = 8
 
@@ -89,6 +90,43 @@ describe('generate (rotate-copy → spec SVG)', () => {
     expect(() => generate(floralMotif, 0)).toThrow()
     expect(() => generate(floralMotif, -8)).toThrow()
     expect(() => generate(floralMotif, 2.5)).toThrow()
+  })
+})
+
+describe('decor layer (MANDALA-SPEC §4)', () => {
+  it('omits the decor layer for a decor-free motif (back-compat)', () => {
+    expect(floralMotif.decor).toBeUndefined()
+    const doc = parse(generate(floralMotif, N))
+    expect(doc.querySelector('[data-layer="decor"]')).toBeNull()
+  })
+
+  const doc = parse(generate(compassMotif, N))
+  const decor = doc.querySelector('[data-layer="decor"]')!
+
+  it('emits a non-fillable decor layer drawn after the regions', () => {
+    expect(decor).not.toBeNull()
+    expect(decor.getAttribute('pointer-events')).toBe('none')
+    // Decor must come AFTER the regions layer so it reads as an outline on top.
+    const layers = [...doc.querySelectorAll('[data-layer]')].map((l) =>
+      l.getAttribute('data-layer'),
+    )
+    expect(layers).toEqual(['regions', 'decor'])
+  })
+
+  it('rotate-copies per-wedge decor (a spoke per wedge) but never tags it fillable', () => {
+    expect(decor.querySelectorAll('line')).toHaveLength(N)
+    expect(decor.querySelectorAll('[data-symmetry-group]')).toHaveLength(0)
+  })
+
+  it('emits static decor (the frame ring) exactly once, un-rotated', () => {
+    const rings = [...decor.querySelectorAll('circle')]
+    expect(rings).toHaveLength(1)
+    expect(rings[0].closest('[transform]')).toBeNull()
+  })
+
+  it('does not let decor inflate the fillable region count', () => {
+    const regions = doc.querySelectorAll('[data-symmetry-group]')
+    expect(regions).toHaveLength(compassMotif.shapes.length * N + 1) // +center
   })
 })
 

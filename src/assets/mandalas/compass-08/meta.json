@@ -1,0 +1,21 @@
+{
+  "id": "compass-08",
+  "title": "Compass 8",
+  "symmetryOrder": 8,
+  "paper": "#f4efe6",
+  "palettes": [
+    {
+      "name": "Lapis",
+      "colors": [
+        "#13334d",
+        "#2a6f97",
+        "#48b6b0",
+        "#e9c46a",
+        "#e76f51",
+        "#9b4f96"
+      ]
+    }
+  ],
+  "author": "you",
+  "license": "CC0"
+}

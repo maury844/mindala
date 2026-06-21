@@ -47,3 +47,42 @@ export const DWELL = {
    */
   JAW_THRESH: 0.5,
 } as const
+
+/**
+ * Onboarding / calibration (Phase B2 — first-run wrapper around `recenter()`).
+ *
+ * Like RUNTIME below, these are NOT spike-validated feel constants — they drive
+ * the first-run "set your center" overlay (DESIGN decision #8) and are safe to
+ * tune (the turn-rate thresholds especially want a real-webcam pass). Flow: the
+ * user looks at the target and holds still; once head turn-rate stays below
+ * STILL_RATE for SETTLE_SEC, a COUNT_SEC countdown runs and captures neutral —
+ * but a clear move (turn-rate above MOVE_RATE) aborts the countdown so they know
+ * exactly which resting pose became the origin.
+ */
+export const CALIBRATE = {
+  /** seconds of the steady-pose countdown once the head has settled. */
+  COUNT_SEC: 3,
+  /** seconds the head must stay still (turn-rate < STILL_RATE) before counting. */
+  SETTLE_SEC: 0.35,
+  /** deg/s — smoothed head turn-rate at/below which the head reads as "still". */
+  STILL_RATE: 6,
+  /** deg/s — turn-rate above this aborts an in-progress countdown (hysteresis). */
+  MOVE_RATE: 14,
+} as const
+
+/**
+ * Runtime resilience thresholds (Phase B1 — robustness).
+ *
+ * Unlike CURSOR/DWELL, these are NOT spike-validated feel constants — they are
+ * defaults for the weak-hardware warning and are safe to tune. Hysteresis (trip
+ * vs. clear) keeps the warning from flickering on transient dips, and the trip
+ * window is long enough to skip the fps EMA's warm-up after the model loads.
+ */
+export const RUNTIME = {
+  /** fps below this (sustained) is considered degraded performance. */
+  LOW_FPS: 15,
+  /** seconds fps must stay below LOW_FPS before the warning trips. */
+  PERF_TRIP_SEC: 4,
+  /** seconds fps must recover above LOW_FPS before the warning clears. */
+  PERF_CLEAR_SEC: 3,
+} as const

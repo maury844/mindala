@@ -238,6 +238,24 @@ body {
   color: #f6c177;
   border-color: #5a4a2a;
 }
+/* Weak-hardware warning — sits at the top so it never collides with the
+   bottom-center face/use hints. */
+.perf-hint {
+  position: fixed;
+  left: 50%;
+  top: 16px;
+  transform: translateX(-50%);
+  z-index: 12;
+  padding: 8px 15px;
+  border-radius: 999px;
+  font-size: 13px;
+  background: rgba(22, 26, 34, 0.92);
+  border: 1px solid #5a4a2a;
+  color: #f6c177;
+  backdrop-filter: blur(8px);
+  pointer-events: none;
+  animation: fade-in 0.4s ease;
+}
 @keyframes fade-in {
   from {
     opacity: 0;
@@ -287,14 +305,25 @@ body {
   font-size: 13px;
 }
 .gate-error {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
   margin: 0 0 18px;
-  padding: 10px 12px;
+  padding: 12px 14px;
   border-radius: 10px;
   background: rgba(176, 74, 58, 0.14);
   border: 1px solid rgba(176, 74, 58, 0.5);
   color: #f0a89a;
   font-size: 13px;
   line-height: 1.45;
+  text-align: left;
+}
+.gate-error-title {
+  color: #f6c0b4;
+  font-size: 14px;
+}
+.gate-error-detail {
+  color: #e3a193;
 }
 .gate-button {
   width: 100%;

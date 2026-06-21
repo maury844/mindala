@@ -4,25 +4,25 @@
  * fires on the Start click, which keeps getUserMedia inside a user gesture and
  * sidesteps StrictMode double-mount races.
  *
- * States: idle (Start) · requesting/loading (progress) · denied/error (retry).
- * Pure presentation — all lifecycle lives in `useEngine`.
+ * States: idle (Start) · requesting/loading (progress) · faulted (typed fault +
+ * conditional retry). Pure presentation — all lifecycle lives in `useEngine`.
  */
 
 import type { EnginePhase } from '../hooks/useEngine'
+import type { CameraFault } from '../../engine/tracking/cameraErrors.pure'
 
 interface CameraGateProps {
   phase: EnginePhase
-  errorMessage: string | null
+  fault: CameraFault | null
   onStart: () => void
 }
 
-export default function CameraGate({
-  phase,
-  errorMessage,
-  onStart,
-}: CameraGateProps) {
+export default function CameraGate({ phase, fault, onStart }: CameraGateProps) {
   const busy = phase === 'requesting' || phase === 'loading'
-  const failed = phase === 'denied' || phase === 'error'
+  const failed = phase === 'faulted'
+  // A non-retryable fault (insecure context / unsupported browser) can't be
+  // fixed by clicking again — show guidance only, no button that re-fails.
+  const showButton = !busy && (!failed || (fault?.retryable ?? true))
 
   return (
     <div className="gate" role="dialog" aria-modal="true">
@@ -42,13 +42,14 @@ export default function CameraGate({
           </p>
         )}
 
-        {failed && errorMessage && (
-          <p className="gate-error" role="alert">
-            {errorMessage}
-          </p>
+        {failed && fault && (
+          <div className="gate-error" role="alert">
+            <strong className="gate-error-title">{fault.title}</strong>
+            <span className="gate-error-detail">{fault.detail}</span>
+          </div>
         )}
 
-        {!busy && (
+        {showButton && (
           <button type="button" className="gate-button" onClick={onStart}>
             {failed ? 'Try again' : 'Enable camera & start'}
           </button>

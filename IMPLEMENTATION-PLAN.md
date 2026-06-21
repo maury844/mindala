@@ -1,6 +1,13 @@
-# IMPLEMENTATION PLAN — Phase A (head-controlled floral mandala coloring)
+# IMPLEMENTATION PLAN — head-controlled floral mandala coloring
 
-## Progress tracker (updated 2026-06-20)
+> Phase A (M0–M6) is the "ridiculous toy", built clean. **Phase B** (B1+) is the
+> hardening/polish road toward the portfolio piece — see the Phase B section below.
+
+## Progress tracker (updated 2026-06-21)
+- **Phase B (portfolio hardening):**
+  - ◑ B1 — Camera & runtime resilience (code done; live webcam feel-verify pending hardware): typed camera-fault classification (`engine/tracking/cameraErrors.pure.ts` — denied / no-device / in-use / insecure / unsupported / lost / model / unknown, each with actionable copy + retryability), mid-session camera-loss recovery (`track.ended` → fall back to gate), and a sustained-low-fps warning with hysteresis (`engine/runtime/perfMonitor.pure.ts`). `useEngine` gained a single `faulted` phase carrying a `CameraFault` (replacing the `denied`/`error` split + raw `String(err)`), pre-flight secure-context/support guards, and a `degraded` flag. 34 new Vitest tests (87 total). Headless browser verify: busy/insecure/unsupported fault cards render the right copy + conditional retry through the real React flow, no console errors. **Remaining: confirm camera-loss + low-fps warning on real hardware.**
+
+## Phase A progress tracker (updated 2026-06-20)
 - ✅ M0 — Scaffold & tooling (done): Vite React TS app, tooling, config constants, and engine boundary are in place.
 - ✅ M1 — Engine: face tracking (done): MediaPipe FaceTracker, pure pose extraction, unit tests, and `/tracking.html` dev harness are in place.
 - ✅ M2 — Engine: velocity cursor (done): `VelocityCursor` (EMA → neutral → deadzone → expo → integrate → clamp) + exported pure `shape()`, 13 Vitest cursor tests.
@@ -167,6 +174,68 @@ Onboarding polish / calibration overlay, accounts/saving, sharing/export, sound,
 - A reviewer runs the **manual verify checklist** (below) and all pass.
 - Recenter works (button + spacebar); face-loss doesn't move or fill.
 - README documents run/build and the camera/secure-context requirement.
+
+---
+
+# Phase B — portfolio hardening
+
+> Phase A proved the toy. Phase B makes it survive a live demo and earn the
+> "looks expensive, how'd you build that" reaction. Same hard rules as Phase A:
+> `engine/` stays React-free, feel constants live in `config.ts`, and pure logic
+> ships with Vitest coverage. Milestones are independent — sequence by value, not
+> dependency.
+
+## B1 — Camera & runtime resilience  ·  size M  ·  depends M5
+**Status:** Code done 2026-06-21 (live webcam feel-verify pending hardware). The
+ad-hoc `denied`/`error` phases + `String(err)` blob are replaced by a single
+`faulted` phase carrying a typed `CameraFault`. Headless-verified through the real
+React flow; the two hardware-only paths (physical unplug, sustained low fps) are
+unit-tested but want a webcam confirm.
+
+**Goal:** the toy fails *legibly* and recovers — no dead-ends, no frozen loop, no
+mystery on weak hardware.
+
+**Approach:**
+- `engine/tracking/cameraErrors.pure.ts` — `classifyCameraError(err)` maps a
+  `getUserMedia` rejection's `DOMException.name` to a typed `CameraFault`
+  (`denied` · `no-device` · `in-use` · `insecure` · `unsupported` · `lost` ·
+  `model` · `unknown`), each with a user-facing title/detail and a `retryable`
+  flag. `faultOf(kind)` builds the non-error faults (pre-flight + mid-session).
+  Single source for all the copy. Pure (no DOM/React).
+- `engine/runtime/perfMonitor.pure.ts` — `PerfMonitor.sample(fps, dt)` accumulates
+  time spent below `RUNTIME.LOW_FPS` and trips `degraded` only after
+  `PERF_TRIP_SEC` (skips the EMA warm-up), with a separate `PERF_CLEAR_SEC`
+  recovery window so the warning can't flicker. Pure.
+- `config.ts` — new `RUNTIME` block (`LOW_FPS`, `PERF_TRIP_SEC`, `PERF_CLEAR_SEC`);
+  documented as tunable robustness defaults, **not** spike-validated feel.
+- `useEngine` — pre-flight `isSecureContext` / `mediaDevices` guards (fail before
+  prompting); classify the `getUserMedia` rejection; attach `track.ended` →
+  `faultOf('lost')` + teardown so a revoked stream falls back to the gate instead
+  of spinning; feed `PerfMonitor` each frame and mirror `degraded` on its edge.
+  New `failSession(fault)` is the single recoverable-failure teardown (re-arms
+  `start()` for retry).
+- `CameraGate` renders `fault.title` + `fault.detail`, and **hides** the retry
+  button when `!fault.retryable` (insecure/unsupported can't be clicked away).
+- `App` shows a subtle top-center perf warning while `degraded`.
+
+**Files:** `engine/tracking/cameraErrors.pure.ts` (+test), `engine/runtime/perfMonitor.pure.ts` (+test), `engine/config.ts`, `app/hooks/useEngine.ts`, `app/components/CameraGate.tsx`, `app/App.tsx`, `index.css`.
+
+**AC:**
+- Each `DOMException.name` maps to the right fault kind; junk input → `unknown`
+  without throwing (unit-tested).
+- `PerfMonitor` trips only after sustained low fps and clears only after sustained
+  recovery; brief blips don't flip it (unit-tested).
+- In-browser: denied / no-device / in-use / insecure / unsupported each show the
+  right card; retry is shown for retryable faults and hidden otherwise. ✅ verified
+  headlessly (busy/insecure/unsupported) through the real React flow.
+- Mid-session camera loss returns to the gate with a "disconnected" retry (rather
+  than a frozen cursor). _Needs hardware confirm._
+- Sustained low fps surfaces the warning and it clears on recovery. _Needs hardware confirm._
+- Engine boundary lint still clean; `engine/` imports no React.
+
+**Remaining B milestones (not yet scoped):** sharing/export (goal-A payoff),
+B-phase visual juice (fill animation, glow, animated background), onboarding/
+calibration overlay, Mode 2 paint-by-numbers (DESIGN §3), mobile pivot.
 
 ---
 

@@ -47,3 +47,20 @@ export const DWELL = {
    */
   JAW_THRESH: 0.5,
 } as const
+
+/**
+ * Runtime resilience thresholds (Phase B1 — robustness).
+ *
+ * Unlike CURSOR/DWELL, these are NOT spike-validated feel constants — they are
+ * defaults for the weak-hardware warning and are safe to tune. Hysteresis (trip
+ * vs. clear) keeps the warning from flickering on transient dips, and the trip
+ * window is long enough to skip the fps EMA's warm-up after the model loads.
+ */
+export const RUNTIME = {
+  /** fps below this (sustained) is considered degraded performance. */
+  LOW_FPS: 15,
+  /** seconds fps must stay below LOW_FPS before the warning trips. */
+  PERF_TRIP_SEC: 4,
+  /** seconds fps must recover above LOW_FPS before the warning clears. */
+  PERF_CLEAR_SEC: 3,
+} as const

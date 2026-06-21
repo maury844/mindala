@@ -86,13 +86,19 @@ export default function App() {
               turn your head to move · relax to paint
             </div>
           )}
+
+          {engine.degraded && (
+            <div className="perf-hint" role="status">
+              Low frame rate — close other tabs or apps for smoother control.
+            </div>
+          )}
         </>
       )}
 
       {!ready && (
         <CameraGate
           phase={engine.phase}
-          errorMessage={engine.errorMessage}
+          fault={engine.fault}
           onStart={engine.start}
         />
       )}

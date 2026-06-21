@@ -28,6 +28,12 @@ import { mountMandala, type MandalaView } from '../../engine/mandala/webView'
 import { floral01 } from '../../engine/mandala/floral01'
 import { DWELL } from '../../engine/config'
 import type { MandalaDoc } from '../../engine/mandala/types'
+import {
+  classifyCameraError,
+  faultOf,
+  type CameraFault,
+} from '../../engine/tracking/cameraErrors.pure'
+import { PerfMonitor } from '../../engine/runtime/perfMonitor.pure'
 
 /** Where the app is in the camera → model → run lifecycle. */
 export type EnginePhase =
@@ -35,8 +41,7 @@ export type EnginePhase =
   | 'requesting' // getUserMedia prompt is up
   | 'loading' // camera granted; downloading the MediaPipe model (~3MB)
   | 'ready' // loop is running
-  | 'denied' // camera permission refused
-  | 'error' // model failed to load (or no <video>)
+  | 'faulted' // camera/model failure — see `fault` (gate shows it + retry)
 
 /** Largest dt we trust per frame — clamps tab-switch / GC spikes (spike parity). */
 const MAX_DT = 0.05
@@ -47,10 +52,12 @@ export interface EngineHandle {
   /** The mounted mandala (title, palette, paper). */
   doc: MandalaDoc
   phase: EnginePhase
-  /** Human-readable reason when `phase` is `denied` / `error`. */
-  errorMessage: string | null
+  /** Typed failure (title/detail/retryable) when `phase` is `faulted`. */
+  fault: CameraFault | null
   hasFace: boolean
   fps: number
+  /** True when the loop has run below a usable frame rate for a sustained spell. */
+  degraded: boolean
   /** The color a region dwell will paint with (eraser = `doc.paper`). */
   activeColor: string
   /** Swatch id currently under the cursor (`'0'..'8'` | `'erase'`), for hover cue. */
@@ -87,6 +94,7 @@ export function useEngine(doc: MandalaDoc = floral01): EngineHandle {
   const dwellRef = useRef<DwellController | null>(null)
   const viewRef = useRef<MandalaView | null>(null)
   const streamRef = useRef<MediaStream | null>(null)
+  const perfRef = useRef<PerfMonitor | null>(null)
   const rafRef = useRef<number | null>(null)
   const startedRef = useRef(false)
 
@@ -97,12 +105,14 @@ export function useEngine(doc: MandalaDoc = floral01): EngineHandle {
   const hasFaceRef = useRef(false)
   const hoverRef = useRef<string | null>(null)
   const overlayVisibleRef = useRef(false)
+  const degradedRef = useRef(false)
 
   // Low-frequency state mirrored into React for rendering.
   const [phase, setPhase] = useState<EnginePhase>('idle')
-  const [errorMessage, setErrorMessage] = useState<string | null>(null)
+  const [fault, setFault] = useState<CameraFault | null>(null)
   const [hasFace, setHasFace] = useState(false)
   const [fps, setFps] = useState(0)
+  const [degraded, setDegraded] = useState(false)
   const [activeColor, setActiveColorState] = useState(doc.palettes[0].colors[0])
   const [hoverSwatch, setHoverSwatch] = useState<string | null>(null)
   const [overlayVisible, setOverlayVisible] = useState(false)
@@ -125,6 +135,25 @@ export function useEngine(doc: MandalaDoc = floral01): EngineHandle {
     }
   }, [])
 
+  // Tear the live session down and surface a typed fault. Drives both the
+  // `start()` failure paths and mid-session camera loss (`track.ended`), so it
+  // must be safe to call from an async path or a DOM event, and idempotent. The
+  // mount-effect cleanup remains the unmount path; this is the "recoverable
+  // failure" path that re-arms `start()` for a retry.
+  const failSession = useCallback((f: CameraFault) => {
+    if (rafRef.current !== null) cancelAnimationFrame(rafRef.current)
+    rafRef.current = null
+    trackerRef.current?.close()
+    trackerRef.current = null
+    streamRef.current?.getTracks().forEach((t) => t.stop())
+    streamRef.current = null
+    startedRef.current = false
+    degradedRef.current = false
+    setDegraded(false)
+    setFault(f)
+    setPhase('faulted')
+  }, [])
+
   // Mount the mandala + create the (DOM-free) engine instances once the stage
   // container exists. Cleanup tears the whole session down (StrictMode-safe).
   useEffect(() => {
@@ -137,6 +166,7 @@ export function useEngine(doc: MandalaDoc = floral01): EngineHandle {
       height: window.innerHeight,
     })
     dwellRef.current = new DwellController({ paper: doc.paper })
+    perfRef.current = new PerfMonitor()
     activeColorRef.current = doc.palettes[0].colors[0]
 
     return () => {
@@ -155,7 +185,19 @@ export function useEngine(doc: MandalaDoc = floral01): EngineHandle {
   const start = useCallback(async () => {
     if (startedRef.current) return
     startedRef.current = true
-    setErrorMessage(null)
+    setFault(null)
+
+    // Pre-flight: fail fast with the right message before even prompting, so a
+    // non-HTTPS deploy or an old browser doesn't surface as a vague "blocked".
+    if (typeof window !== 'undefined' && window.isSecureContext === false) {
+      failSession(faultOf('insecure'))
+      return
+    }
+    if (!navigator.mediaDevices?.getUserMedia) {
+      failSession(faultOf('unsupported'))
+      return
+    }
+
     setPhase('requesting')
 
     let stream: MediaStream
@@ -165,19 +207,23 @@ export function useEngine(doc: MandalaDoc = floral01): EngineHandle {
         audio: false,
       })
     } catch (err) {
-      startedRef.current = false
-      setErrorMessage(
-        `Camera access was blocked. Allow it in your browser, then try again. (${String(err)})`,
-      )
-      setPhase('denied')
+      failSession(classifyCameraError(err))
       return
     }
     streamRef.current = stream
 
+    // Mid-session camera loss (unplug / OS revoke / another app steals it) ends
+    // the track. Without this the loop would spin forever on a frozen frame; we
+    // tear down and fall back to the gate with a "disconnected" retry instead.
+    stream.getVideoTracks().forEach((track) => {
+      track.addEventListener('ended', () => {
+        if (startedRef.current) failSession(faultOf('lost'))
+      })
+    })
+
     const video = videoRef.current
     if (!video) {
-      setErrorMessage('Internal error: no <video> element to attach the camera.')
-      setPhase('error')
+      failSession(faultOf('unknown'))
       return
     }
     video.srcObject = stream
@@ -190,17 +236,15 @@ export function useEngine(doc: MandalaDoc = floral01): EngineHandle {
     const tracker = new FaceTracker()
     try {
       await tracker.init()
-    } catch (err) {
-      setErrorMessage(
-        `The face-tracking model failed to load — check your connection and retry. (${String(err)})`,
-      )
-      setPhase('error')
+    } catch {
+      failSession(faultOf('model'))
       return
     }
     trackerRef.current = tracker
     setPhase('ready')
 
     lastTRef.current = 0
+    perfRef.current?.reset()
 
     const frame = (now: number): void => {
       const last = lastTRef.current || now
@@ -281,6 +325,12 @@ export function useEngine(doc: MandalaDoc = floral01): EngineHandle {
         lastFpsPushRef.current = now
         setFps(fpsRef.current)
       }
+      // Weak-hardware warning: only flips on the (de)graded edge.
+      const nowDegraded = perfRef.current?.sample(fpsRef.current, dt) ?? false
+      if (nowDegraded !== degradedRef.current) {
+        degradedRef.current = nowDegraded
+        setDegraded(nowDegraded)
+      }
 
       if (overlayVisibleRef.current && overlayRef.current) {
         const over = target ? target.key : '–'
@@ -313,14 +363,15 @@ export function useEngine(doc: MandalaDoc = floral01): EngineHandle {
     }
 
     rafRef.current = requestAnimationFrame(frame)
-  }, [setActiveColor])
+  }, [setActiveColor, failSession])
 
   return {
     doc,
     phase,
-    errorMessage,
+    fault,
     hasFace,
     fps,
+    degraded,
     activeColor,
     hoverSwatch,
     overlayVisible,

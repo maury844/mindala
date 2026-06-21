@@ -51,14 +51,23 @@ export const DWELL = {
 /**
  * Onboarding / calibration (Phase B2 — first-run wrapper around `recenter()`).
  *
- * Like RUNTIME below, this is NOT a spike-validated feel constant — it is the
- * dwell time of the first-run "set your center" overlay (DESIGN decision #8) and
- * is safe to tune. The overlay simply re-zeros neutral after the user holds a
- * comfortable pose for HOLD_SEC, so they know their resting pose is the origin.
+ * Like RUNTIME below, these are NOT spike-validated feel constants — they drive
+ * the first-run "set your center" overlay (DESIGN decision #8) and are safe to
+ * tune (the turn-rate thresholds especially want a real-webcam pass). Flow: the
+ * user looks at the target and holds still; once head turn-rate stays below
+ * STILL_RATE for SETTLE_SEC, a COUNT_SEC countdown runs and captures neutral —
+ * but a clear move (turn-rate above MOVE_RATE) aborts the countdown so they know
+ * exactly which resting pose became the origin.
  */
 export const CALIBRATE = {
-  /** seconds the user holds a neutral pose while the overlay captures it. */
-  HOLD_SEC: 2.2,
+  /** seconds of the steady-pose countdown once the head has settled. */
+  COUNT_SEC: 3,
+  /** seconds the head must stay still (turn-rate < STILL_RATE) before counting. */
+  SETTLE_SEC: 0.35,
+  /** deg/s — smoothed head turn-rate at/below which the head reads as "still". */
+  STILL_RATE: 6,
+  /** deg/s — turn-rate above this aborts an in-progress countdown (hysteresis). */
+  MOVE_RATE: 14,
 } as const
 
 /**

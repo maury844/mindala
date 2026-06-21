@@ -6,13 +6,15 @@
 ## Progress tracker (updated 2026-06-21)
 - **Phase B (portfolio hardening):**
   - ◑ B1 — Camera & runtime resilience (code done; live webcam feel-verify pending hardware): typed camera-fault classification (`engine/tracking/cameraErrors.pure.ts` — denied / no-device / in-use / insecure / unsupported / lost / model / unknown, each with actionable copy + retryability), mid-session camera-loss recovery (`track.ended` → fall back to gate), and a sustained-low-fps warning with hysteresis (`engine/runtime/perfMonitor.pure.ts`). `useEngine` gained a single `faulted` phase carrying a `CameraFault` (replacing the `denied`/`error` split + raw `String(err)`), pre-flight secure-context/support guards, and a `degraded` flag. 34 new Vitest tests (87 total). Headless browser verify: busy/insecure/unsupported fault cards render the right copy + conditional retry through the real React flow, no console errors. **Remaining: confirm camera-loss + low-fps warning on real hardware.**
-  - ◑ B2 — Onboarding / calibration overlay (code done; live webcam feel-verify pending hardware): the deferred DESIGN #8 "A" wrapper around the existing `neutral = currentPose` capture. Previously the loop went straight to `ready` and silently captured whatever pose happened to be in the first tracked frame as zero — nobody chose that origin. Now a `calibrating` phase sits between `loading` and `ready`: a full-screen overlay (`app/components/CalibrationOverlay.tsx`) shows a centered look-at target (reusing the dwell-ring conic-gradient visual language) + copy explaining "the pose you hold now becomes neutral; you steer by turning *away* from it." The loop parks the cursor on the target and re-pends neutral every frame (cursor stays still while the smoother tracks the live pose) for `CALIBRATE.HOLD_SEC` (2.2s, tunable — added to `config.ts`), counting only while a face is tracked; the final frame's capture is the locked neutral. `Space` completes the hold immediately; `c` re-shows the overlay anytime (`recalibrate()`); the instant `Recenter` button is unchanged for mid-session micro-adjusts. Headless browser verify: overlay markup/CSS render correctly (desktop + 375px mobile), face-present ("Hold still…", accent) vs no-face ("position your face", amber) states, no console errors. **Remaining: confirm the 2.2s capture *feels* right at a real webcam.**
+  - ◑ B2 — Onboarding / calibration overlay (code done; live webcam feel-verify pending hardware): the deferred DESIGN #8 "A" wrapper around the existing `neutral = currentPose` capture. Previously the loop went straight to `ready` and silently captured whatever pose happened to be in the first tracked frame as zero — nobody chose that origin. Now a `calibrating` phase sits between `loading` and `ready`: a full-screen overlay (`app/components/CalibrationOverlay.tsx`) shows a centered look-at target (reusing the dwell-ring conic-gradient visual language) + copy explaining "the pose you hold now becomes neutral; you steer by turning *away* from it." The capture is **stillness-gated**: the loop tracks the head's EMA-smoothed turn-rate, waits for it to stay below `STILL_RATE` for `SETTLE_SEC` ("Look straight and hold still…"), then runs a visible `COUNT_SEC`=3 s countdown (3→2→1 in the ring center, "Capturing — keep steady…"); a clear move (turn-rate above `MOVE_RATE`, hysteresis) aborts the countdown back to settling. Neutral is captured continuously (cursor parked, smoother warm), so the frame the countdown finishes on is the locked origin. All thresholds are tunable `CALIBRATE` constants in `config.ts` (flagged as needing a real-webcam pass). `Space` captures immediately (skips the countdown); `c` re-shows the overlay anytime (`recalibrate()`); the instant `Recenter` button is unchanged for mid-session micro-adjusts. Per-frame overlay bits (ring fill, countdown number, status text) are written to refs — no React re-render. Headless browser verify: settling + counting states render correctly (desktop + 820/375px), the bullseye→number swap (`:has(.calib-count:not(:empty))`) works, status colors per state, no console errors. **Remaining: confirm the settle thresholds + 3 s countdown *feel* right at a real webcam.**
 
 ## Phase A progress tracker (updated 2026-06-20)
 - ✅ M0 — Scaffold & tooling (done): Vite React TS app, tooling, config constants, and engine boundary are in place.
 - ✅ M1 — Engine: face tracking (done): MediaPipe FaceTracker, pure pose extraction, unit tests, and `/tracking.html` dev harness are in place.
 - ✅ M2 — Engine: velocity cursor (done): `VelocityCursor` (EMA → neutral → deadzone → expo → integrate → clamp) + exported pure `shape()`, 13 Vitest cursor tests.
 - ✅ M3 — Engine: mandala model + generator + first asset (done): `types`, pure `generate()`/`describeRegions()`, the authored floral 8-fold wedge, `floral01` doc + `meta.json`, and the web-only `webView` adapter. 18 new Vitest tests; rendered ACs (8-fold/floral, no overlap, ≥40px regions) verified in-browser via `/mandala.html`.
+  - ➕ Second asset (2026-06-21): `compass-08` — an 8-fold "compass / snowflake" mandala (sun → pentagon ring → diamond ring → rim balls, on radial spokes inside a frame ring). Added as `compassWedge.ts` + `meta.json` (Lapis palette) + `compass08.ts`, same pattern as floral. To support its spokes + frame ring, `generate()`/`WedgeMotif` gained an **optional decor layer** (MANDALA-SPEC §4): `decor` (rotate-copied ×N) and `staticDecor` (emitted once) render in a top `pointer-events:none` `<g data-layer="decor">` — backward-compatible, decor-free assets are byte-identical. 13 new tests (decor layer + compass tiling/dwell ACs).
+  - ➕ Runtime mandala picker (2026-06-21): a `registry.ts` (`MANDALAS = [floral01, compass08]`, first = default) feeds a top-left `MandalaPicker` (live SVG thumbnails, mouse-clickable chrome like Recenter). `useEngine` now takes the registry (not a single doc), owns the selected `doc` as state, and exposes `mandalas` + `selectMandala(id)`. Its one mount effect was **split**: a session effect (cursor/perf + camera teardown, `[]`) and a mandala effect (mount SVG + dwell, `[doc]`) — so switching remounts only the SVG and resets the active color, leaving the camera/tracker/captured neutral intact (no recalibration). 5 new `MandalaPicker` Vitest tests (105 total). Verified live in-browser (stubbed camera → ready): picker swaps the stage floral↔compass both ways, camera stays live, palette + pressed-state sync, no leaked SVG nodes, no console errors. Adding a mandala = one entry in `registry.ts`.
 - ✅ M4 — Engine: dwell controller (done): pure `dwellController.pure.ts` (`DwellController` class — must-stop gate, region-keyed progress, decay-on-leave, disarm-after-commit) emitting `selectColor`/`fill`/`erase` events; the canonical `DwellTarget` type now lives here and `webView` re-exports it. 15 new Vitest tests cover every AC.
 - ✅ M5 — React shell (done): `useEngine` owns the single rAF loop (tracker → cursor → `resolveTargetAt` → dwell → apply events) writing per-frame visuals to refs (no React re-renders); `App` composes `CameraGate` / `Stage` / `Cursor` / `PaletteDock` / `CameraPreview` / `DevOverlay`. Engine boundary lint clean; typecheck/lint/test (53)/build green. Verified headlessly in-browser: gate renders over the mounted 8-fold mandala (33 regions), dock shows 9 swatches + eraser, selection state machine (color ↔ eraser, single-active) works, cursor layer is `pointer-events:none`, `d` toggles the overlay, mobile layout centers, no console errors. **The camera-driven end-to-end (steer→fill→mirror→erase, fps, memory) needs a human at a webcam — that is M6's manual checklist.**
 - ◑ M6 — Integration polish & verify (mostly done; manual feel-verify pending hardware): recenter (button + Space), first-use hint, face-lost handling (freeze cursor + "no face" hint), responsive centering, and the README (run/build + secure-context) are all in. Constants are read from `config.ts` (single source). **Remaining: a human runs the manual verify checklist at a webcam** (the spike philosophy — "the only judge of feels good is a human").
@@ -252,30 +254,40 @@ loop silently zeroing on the first tracked frame.
 **Approach:**
 - New `calibrating` phase in `useEngine` between `loading` and `ready`. The loop
   parks the cursor on a centered target and re-pends neutral every frame (delta 0
-  → cursor still; smoother stays warm) for `CALIBRATE.HOLD_SEC`, accumulating only
-  while a face is tracked; the final captured pose becomes the locked neutral, then
-  it flips to `ready`.
-- `config.ts` — new `CALIBRATE.HOLD_SEC` (2.2s; tunable onboarding timing, **not**
-  spike-validated feel, like `RUNTIME`).
+  → cursor still; smoother stays warm) so neutral always tracks the live pose. A small state machine (`calibStateRef`)
+  gates *when* it stops: track the head's EMA-smoothed turn-rate (deg/s); while
+  **settling**, accumulate stillness time while rate < `STILL_RATE` and start the
+  countdown after `SETTLE_SEC`; while **counting**, advance a `COUNT_SEC` timer but
+  abort back to settling if rate > `MOVE_RATE` (hysteresis). On completion the
+  current (settled) neutral is the locked origin and it flips to `ready`. No face
+  resets the machine.
+- `config.ts` — new `CALIBRATE` block (`COUNT_SEC`, `SETTLE_SEC`, `STILL_RATE`,
+  `MOVE_RATE`); tunable onboarding constants, **not** spike-validated feel (the
+  turn-rate thresholds especially want a real-webcam pass), like `RUNTIME`.
 - `app/components/CalibrationOverlay.tsx` — full-screen overlay with a look-at
-  target (dwell-ring conic-gradient written per-frame to `calibRingRef`, no
-  re-render) + a center bullseye + copy + a face-gated status line.
-- `useEngine` — `recenter()` overloaded so `Space` completes calibration
-  immediately; new `recalibrate()` (key `c`) re-enters the overlay; exposes
-  `calibRingRef`. `App` shows the overlay during `calibrating`, keeps the gate off
-  during it, and reveals the camera preview so the user can center their face.
+  target: a dwell-ring conic-gradient (per-frame `calibRingRef`), a center bullseye
+  that yields to a 3/2/1 number (`calibCountRef`) once counting begins (CSS
+  `:has(.calib-count:not(:empty))`), copy, and a ref-driven status line
+  (`calibStatusRef`, `data-state` = noface/settling/counting). Per-frame bits are
+  refs — no React re-render.
+- `useEngine` — `recenter()` overloaded so `Space` forces an immediate capture
+  (skips the countdown); new `recalibrate()` (key `c`) re-enters the overlay;
+  exposes `calibRingRef`/`calibCountRef`/`calibStatusRef`. `App` shows the overlay
+  during `calibrating`, keeps the gate off during it, and reveals the camera
+  preview so the user can center their face.
 
 **Files:** `engine/config.ts`, `app/hooks/useEngine.ts`, `app/components/CalibrationOverlay.tsx`, `app/App.tsx`, `index.css`.
 
 **AC:**
 - After the model loads, the overlay appears (not the live cursor) and explains
   the neutral capture; it does not paint anything.
-- The ring fills over `HOLD_SEC` only while a face is present; losing the face
-  pauses it and swaps the status copy. ✅ states verified headlessly.
-- On completion, neutral is locked to the held pose and the app enters `ready`
+- Countdown only starts once the head holds still (rate < `STILL_RATE` for
+  `SETTLE_SEC`); a clear move aborts it; losing the face resets it and swaps the
+  status copy. ✅ settling/counting states verified headlessly.
+- On completion, neutral is locked to the settled pose and the app enters `ready`
   with the cursor resting at the look target. _Feel needs hardware confirm._
-- `Space` finishes calibration now; `c` re-opens it; instant `Recenter` still
-  re-zeros mid-session.
+- `Space` captures now (skips the countdown); `c` re-opens calibration; instant
+  `Recenter` still re-zeros mid-session.
 - Engine boundary lint still clean; `engine/` imports no React.
 
 ---

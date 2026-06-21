@@ -153,6 +153,49 @@ body {
   font-size: 18px;
 }
 
+/* ── Mandala picker (top-left) ───────────────────────────────────────────── */
+.mandala-picker {
+  position: fixed;
+  left: 14px;
+  top: 14px;
+  z-index: 12;
+  display: flex;
+  gap: 8px;
+  padding: 8px;
+  border-radius: 14px;
+  background: rgba(22, 26, 34, 0.9);
+  border: 1px solid var(--line);
+  backdrop-filter: blur(8px);
+}
+.thumb {
+  width: 56px;
+  height: 56px;
+  padding: 0;
+  border-radius: 11px;
+  border: 2px solid transparent;
+  background: var(--bg);
+  cursor: pointer;
+  overflow: hidden;
+  display: block;
+  transition:
+    transform 0.1s ease,
+    border-color 0.1s ease,
+    box-shadow 0.1s ease;
+}
+.thumb:hover {
+  transform: scale(1.06);
+}
+.thumb.active {
+  border-color: var(--accent);
+  box-shadow: 0 0 0 2px rgba(110, 231, 183, 0.4);
+}
+.thumb-art,
+.thumb-art svg {
+  display: block;
+  width: 100%;
+  height: 100%;
+}
+
 /* ── Camera preview (corner self-view) ───────────────────────────────────── */
 .camera-preview {
   position: fixed;
@@ -405,6 +448,22 @@ body {
   border-radius: 50%;
   background: radial-gradient(circle at 35% 35%, #fff, var(--accent) 60%, #0b8c5f);
   box-shadow: 0 0 16px 4px rgba(110, 231, 183, 0.5);
+  transition: opacity 0.2s ease;
+}
+/* The look-target dot yields to the countdown number once counting begins. */
+.calib-target:has(.calib-count:not(:empty)) .calib-bull {
+  opacity: 0;
+}
+.calib-count {
+  position: absolute;
+  inset: 0;
+  display: grid;
+  place-items: center;
+  font-size: 52px;
+  font-weight: 700;
+  font-variant-numeric: tabular-nums;
+  color: var(--accent);
+  text-shadow: 0 0 18px rgba(110, 231, 183, 0.55);
 }
 .calib-title {
   margin: 0 0 10px;
@@ -421,15 +480,16 @@ body {
   color: var(--text);
   font-style: normal;
 }
-.calib-face {
+.calib-status-line {
   margin: 0 0 14px;
   font-size: 13px;
   min-height: 1.2em;
+  color: var(--muted);
 }
-.calib-face[data-face='1'] {
+.calib-status-line[data-state='counting'] {
   color: var(--accent);
 }
-.calib-face[data-face='0'] {
+.calib-status-line[data-state='noface'] {
   color: #f6c177;
 }
 .calib-skip {

@@ -15,6 +15,7 @@ import Stage from './components/Stage'
 import Cursor from './components/Cursor'
 import PaletteDock from './components/PaletteDock'
 import CameraGate from './components/CameraGate'
+import MandalaPicker from './components/MandalaPicker'
 import CalibrationOverlay from './components/CalibrationOverlay'
 import CameraPreview from './components/CameraPreview'
 import DevOverlay from './components/DevOverlay'
@@ -74,6 +75,12 @@ export default function App() {
 
       {ready && (
         <>
+          <MandalaPicker
+            mandalas={engine.mandalas}
+            activeId={engine.doc.id}
+            onSelect={engine.selectMandala}
+          />
+
           <button
             type="button"
             className="recenter-btn"
@@ -105,8 +112,9 @@ export default function App() {
 
       <CalibrationOverlay
         visible={calibrating}
-        hasFace={engine.hasFace}
         ringRef={engine.calibRingRef}
+        countRef={engine.calibCountRef}
+        statusRef={engine.calibStatusRef}
       />
 
       {showGate && (

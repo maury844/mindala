@@ -26,7 +26,7 @@ import {
 } from '../../engine/mandala/dwellController.pure'
 import { mountMandala, type MandalaView } from '../../engine/mandala/webView'
 import { floral01 } from '../../engine/mandala/floral01'
-import { DWELL } from '../../engine/config'
+import { DWELL, CALIBRATE } from '../../engine/config'
 import type { MandalaDoc } from '../../engine/mandala/types'
 import {
   classifyCameraError,
@@ -40,6 +40,7 @@ export type EnginePhase =
   | 'idle' // waiting for the user to start (camera not yet requested)
   | 'requesting' // getUserMedia prompt is up
   | 'loading' // camera granted; downloading the MediaPipe model (~3MB)
+  | 'calibrating' // loop running; capturing the user's neutral pose (first-run)
   | 'ready' // loop is running
   | 'faulted' // camera/model failure — see `fault` (gate shows it + retry)
 
@@ -66,8 +67,13 @@ export interface EngineHandle {
 
   /** Request the camera, load the model, and start the loop. User-triggered. */
   start: () => void
-  /** Re-zero the neutral head pose to wherever it rests now. */
+  /**
+   * Re-zero the neutral head pose to wherever it rests now (instant). During
+   * calibration this completes the hold immediately instead.
+   */
   recenter: () => void
+  /** Re-show the calibration overlay to deliberately re-capture neutral. */
+  recalibrate: () => void
   /** Select a palette color (also driven by a dwelled swatch). */
   setActiveColor: (color: string) => void
   toggleOverlay: () => void
@@ -77,6 +83,8 @@ export interface EngineHandle {
   stageRef: RefObject<HTMLDivElement | null>
   cursorRef: RefObject<HTMLDivElement | null>
   ringRef: RefObject<HTMLDivElement | null>
+  /** The calibration overlay's progress ring (loop writes its fill each frame). */
+  calibRingRef: RefObject<HTMLDivElement | null>
   overlayRef: RefObject<HTMLPreElement | null>
 }
 
@@ -86,6 +94,7 @@ export function useEngine(doc: MandalaDoc = floral01): EngineHandle {
   const stageRef = useRef<HTMLDivElement | null>(null)
   const cursorRef = useRef<HTMLDivElement | null>(null)
   const ringRef = useRef<HTMLDivElement | null>(null)
+  const calibRingRef = useRef<HTMLDivElement | null>(null)
   const overlayRef = useRef<HTMLPreElement | null>(null)
 
   // Engine instances + loop bookkeeping — all mutable, none drive renders.
@@ -97,6 +106,11 @@ export function useEngine(doc: MandalaDoc = floral01): EngineHandle {
   const perfRef = useRef<PerfMonitor | null>(null)
   const rafRef = useRef<number | null>(null)
   const startedRef = useRef(false)
+  // First-run calibration: while `calibratingRef` is set, the loop parks the
+  // cursor on the target and accumulates `calibElapsedRef` (only while a face is
+  // tracked) until it reaches CALIBRATE.HOLD_SEC, then locks neutral + goes ready.
+  const calibratingRef = useRef(false)
+  const calibElapsedRef = useRef(0)
 
   const lastTRef = useRef(0)
   const fpsRef = useRef(0)
@@ -123,7 +137,20 @@ export function useEngine(doc: MandalaDoc = floral01): EngineHandle {
   }, [])
 
   const recenter = useCallback(() => {
-    cursorEngineRef.current?.recenter()
+    // "Set my neutral now." During calibration this also dismisses the overlay
+    // by completing the hold on the next frame; otherwise it re-zeros instantly.
+    if (calibratingRef.current) {
+      calibElapsedRef.current = CALIBRATE.HOLD_SEC
+    } else {
+      cursorEngineRef.current?.recenter()
+    }
+  }, [])
+
+  const recalibrate = useCallback(() => {
+    if (!startedRef.current || calibratingRef.current) return
+    calibElapsedRef.current = 0
+    calibratingRef.current = true
+    setPhase('calibrating')
   }, [])
 
   const toggleOverlay = useCallback(() => {
@@ -241,7 +268,13 @@ export function useEngine(doc: MandalaDoc = floral01): EngineHandle {
       return
     }
     trackerRef.current = tracker
-    setPhase('ready')
+
+    // Enter first-run calibration instead of going straight to ready: the loop
+    // parks the cursor on the overlay target and captures neutral after a short
+    // hold, so the user knows their resting pose is the origin (DESIGN #8).
+    calibratingRef.current = true
+    calibElapsedRef.current = 0
+    setPhase('calibrating')
 
     lastTRef.current = 0
     perfRef.current?.reset()
@@ -258,26 +291,63 @@ export function useEngine(doc: MandalaDoc = floral01): EngineHandle {
       const videoEl = videoRef.current
       const tr = trackerRef.current
 
+      // Detect once per frame; the sample feeds both calibration and the run loop.
+      const sample = videoEl && tr ? tr.detect(videoEl, now) : null
+      const faceNow = sample?.hasFace ?? false
+
+      // ── First-run calibration: park on target, capture neutral after a hold ─
+      if (calibratingRef.current) {
+        if (faceNow && sample && cursorEngine) {
+          // Re-pend neutral every frame so the cursor sits still (delta 0) while
+          // the smoother tracks the live pose; the final frame's capture is the
+          // locked neutral. Only count the hold while a face is actually tracked.
+          cursorEngine.recenter()
+          cursorEngine.update(sample.yaw, sample.pitch, dt, {
+            width: window.innerWidth,
+            height: window.innerHeight,
+          })
+          calibElapsedRef.current += dt
+        }
+
+        const cprog = Math.min(calibElapsedRef.current / CALIBRATE.HOLD_SEC, 1)
+        const cring = calibRingRef.current
+        if (cring) {
+          cring.style.background = `conic-gradient(var(--accent) ${cprog * 360}deg, rgba(255,255,255,.10) 0)`
+        }
+        if (faceNow !== hasFaceRef.current) {
+          hasFaceRef.current = faceNow
+          setHasFace(faceNow)
+        }
+        if (now - lastFpsPushRef.current > FPS_PUSH_MS) {
+          lastFpsPushRef.current = now
+          setFps(fpsRef.current)
+        }
+
+        if (cprog >= 1) {
+          // Neutral is now locked to the settled pose; hand off to the run loop.
+          calibratingRef.current = false
+          setPhase('ready')
+        }
+
+        rafRef.current = requestAnimationFrame(frame)
+        return
+      }
+
       // Cursor freezes at its last position when no face is present, and
       // `speed = Infinity` keeps the must-stop gate closed (face-loss never
       // moves or paints — plan M6 / DISCOVERY §9).
       let x = cursorEngine?.position.x ?? 0
       let y = cursorEngine?.position.y ?? 0
       let speed = Infinity
-      let faceNow = false
 
-      if (videoEl && tr && cursorEngine) {
-        const sample = tr.detect(videoEl, now)
-        faceNow = sample.hasFace
-        if (sample.hasFace) {
-          const s = cursorEngine.update(sample.yaw, sample.pitch, dt, {
-            width: window.innerWidth,
-            height: window.innerHeight,
-          })
-          x = s.x
-          y = s.y
-          speed = s.speed
-        }
+      if (faceNow && sample && cursorEngine) {
+        const s = cursorEngine.update(sample.yaw, sample.pitch, dt, {
+          width: window.innerWidth,
+          height: window.innerHeight,
+        })
+        x = s.x
+        y = s.y
+        speed = s.speed
       }
 
       let progress = 0
@@ -377,12 +447,14 @@ export function useEngine(doc: MandalaDoc = floral01): EngineHandle {
     overlayVisible,
     start,
     recenter,
+    recalibrate,
     setActiveColor,
     toggleOverlay,
     videoRef,
     stageRef,
     cursorRef,
     ringRef,
+    calibRingRef,
     overlayRef,
   }
 }

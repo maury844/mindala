@@ -15,31 +15,39 @@ import Stage from './components/Stage'
 import Cursor from './components/Cursor'
 import PaletteDock from './components/PaletteDock'
 import CameraGate from './components/CameraGate'
+import CalibrationOverlay from './components/CalibrationOverlay'
 import CameraPreview from './components/CameraPreview'
 import DevOverlay from './components/DevOverlay'
 
 export default function App() {
   const engine = useEngine()
   const ready = engine.phase === 'ready'
-  const { recenter, toggleOverlay } = engine
+  const calibrating = engine.phase === 'calibrating'
+  // The gate is the pre-loop front door; once calibration starts, its own
+  // overlay takes over (the gate must not cover the calibration target).
+  const showGate = !ready && !calibrating
+  const { recenter, recalibrate, toggleOverlay } = engine
 
   // First-use hint: shown once the loop is live, dismissed on the first fill
   // (i.e. when the active color is repainted onto the mandala) or after a while.
   const [hintDismissed, setHintDismissed] = useState(false)
 
-  // Keyboard affordances: Space = recenter, d = toggle the dev overlay.
+  // Keyboard affordances: Space = recenter / set neutral now, c = recalibrate,
+  // d = toggle the dev overlay.
   useEffect(() => {
     const onKey = (e: KeyboardEvent): void => {
       if (e.code === 'Space') {
         e.preventDefault()
         recenter()
+      } else if (e.key === 'c' || e.key === 'C') {
+        recalibrate()
       } else if (e.key === 'd' || e.key === 'D') {
         toggleOverlay()
       }
     }
     window.addEventListener('keydown', onKey)
     return () => window.removeEventListener('keydown', onKey)
-  }, [recenter, toggleOverlay])
+  }, [recenter, recalibrate, toggleOverlay])
 
   // Auto-fade the hint a few seconds after the loop starts.
   useEffect(() => {
@@ -61,7 +69,7 @@ export default function App() {
         onSelect={engine.setActiveColor}
       />
 
-      <CameraPreview videoRef={engine.videoRef} visible={ready} />
+      <CameraPreview videoRef={engine.videoRef} visible={ready || calibrating} />
       <DevOverlay overlayRef={engine.overlayRef} visible={engine.overlayVisible} />
 
       {ready && (
@@ -70,7 +78,7 @@ export default function App() {
             type="button"
             className="recenter-btn"
             onClick={recenter}
-            title="Re-zero your neutral head pose (Space)"
+            title="Re-zero your neutral head pose now (Space) · press C to recalibrate"
           >
             Recenter
           </button>
@@ -95,7 +103,13 @@ export default function App() {
         </>
       )}
 
-      {!ready && (
+      <CalibrationOverlay
+        visible={calibrating}
+        hasFace={engine.hasFace}
+        ringRef={engine.calibRingRef}
+      />
+
+      {showGate && (
         <CameraGate
           phase={engine.phase}
           fault={engine.fault}

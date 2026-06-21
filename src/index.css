@@ -358,3 +358,91 @@ body {
     transform: rotate(360deg);
   }
 }
+
+/* ── Calibration overlay (first-run "set your center") ───────────────────── */
+.calib {
+  position: fixed;
+  inset: 0;
+  z-index: 40;
+  display: grid;
+  place-items: center;
+  padding: 24px;
+  text-align: center;
+  background: rgba(7, 9, 13, 0.82);
+  backdrop-filter: blur(7px);
+  animation: fade-in 0.3s ease;
+}
+.calib-inner {
+  width: min(440px, 92vw);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+}
+/* The look-at target: a radial dwell-style ring with a center bullseye. The
+   loop writes the ring's conic-gradient fill each frame (no React re-render). */
+.calib-target {
+  position: relative;
+  width: 148px;
+  height: 148px;
+  margin-bottom: 26px;
+}
+.calib-ring {
+  position: absolute;
+  inset: 0;
+  border-radius: 50%;
+  background: conic-gradient(var(--accent) 0deg, rgba(255, 255, 255, 0.1) 0);
+  -webkit-mask: radial-gradient(transparent 58px, #000 59px);
+  mask: radial-gradient(transparent 58px, #000 59px);
+  will-change: background;
+}
+.calib-bull {
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  width: 16px;
+  height: 16px;
+  margin: -8px 0 0 -8px;
+  border-radius: 50%;
+  background: radial-gradient(circle at 35% 35%, #fff, var(--accent) 60%, #0b8c5f);
+  box-shadow: 0 0 16px 4px rgba(110, 231, 183, 0.5);
+}
+.calib-title {
+  margin: 0 0 10px;
+  font-size: 20px;
+}
+.calib-copy {
+  margin: 0 0 18px;
+  color: var(--muted);
+  font-size: 14px;
+  line-height: 1.55;
+}
+.calib-copy strong,
+.calib-copy em {
+  color: var(--text);
+  font-style: normal;
+}
+.calib-face {
+  margin: 0 0 14px;
+  font-size: 13px;
+  min-height: 1.2em;
+}
+.calib-face[data-face='1'] {
+  color: var(--accent);
+}
+.calib-face[data-face='0'] {
+  color: #f6c177;
+}
+.calib-skip {
+  margin: 0;
+  color: var(--muted);
+  font-size: 12px;
+}
+.calib-skip kbd {
+  font-family: inherit;
+  font-size: 11px;
+  padding: 2px 7px;
+  border-radius: 6px;
+  background: var(--panel);
+  border: 1px solid var(--line);
+  color: var(--text);
+}

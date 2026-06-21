@@ -6,6 +6,7 @@
 ## Progress tracker (updated 2026-06-21)
 - **Phase B (portfolio hardening):**
   - ◑ B1 — Camera & runtime resilience (code done; live webcam feel-verify pending hardware): typed camera-fault classification (`engine/tracking/cameraErrors.pure.ts` — denied / no-device / in-use / insecure / unsupported / lost / model / unknown, each with actionable copy + retryability), mid-session camera-loss recovery (`track.ended` → fall back to gate), and a sustained-low-fps warning with hysteresis (`engine/runtime/perfMonitor.pure.ts`). `useEngine` gained a single `faulted` phase carrying a `CameraFault` (replacing the `denied`/`error` split + raw `String(err)`), pre-flight secure-context/support guards, and a `degraded` flag. 34 new Vitest tests (87 total). Headless browser verify: busy/insecure/unsupported fault cards render the right copy + conditional retry through the real React flow, no console errors. **Remaining: confirm camera-loss + low-fps warning on real hardware.**
+  - ◑ B2 — Onboarding / calibration overlay (code done; live webcam feel-verify pending hardware): the deferred DESIGN #8 "A" wrapper around the existing `neutral = currentPose` capture. Previously the loop went straight to `ready` and silently captured whatever pose happened to be in the first tracked frame as zero — nobody chose that origin. Now a `calibrating` phase sits between `loading` and `ready`: a full-screen overlay (`app/components/CalibrationOverlay.tsx`) shows a centered look-at target (reusing the dwell-ring conic-gradient visual language) + copy explaining "the pose you hold now becomes neutral; you steer by turning *away* from it." The loop parks the cursor on the target and re-pends neutral every frame (cursor stays still while the smoother tracks the live pose) for `CALIBRATE.HOLD_SEC` (2.2s, tunable — added to `config.ts`), counting only while a face is tracked; the final frame's capture is the locked neutral. `Space` completes the hold immediately; `c` re-shows the overlay anytime (`recalibrate()`); the instant `Recenter` button is unchanged for mid-session micro-adjusts. Headless browser verify: overlay markup/CSS render correctly (desktop + 375px mobile), face-present ("Hold still…", accent) vs no-face ("position your face", amber) states, no console errors. **Remaining: confirm the 2.2s capture *feels* right at a real webcam.**
 
 ## Phase A progress tracker (updated 2026-06-20)
 - ✅ M0 — Scaffold & tooling (done): Vite React TS app, tooling, config constants, and engine boundary are in place.
@@ -234,8 +235,48 @@ mystery on weak hardware.
 - Engine boundary lint still clean; `engine/` imports no React.
 
 **Remaining B milestones (not yet scoped):** sharing/export (goal-A payoff),
-B-phase visual juice (fill animation, glow, animated background), onboarding/
-calibration overlay, Mode 2 paint-by-numbers (DESIGN §3), mobile pivot.
+B-phase visual juice (fill animation, glow, animated background), Mode 2
+paint-by-numbers (DESIGN §3), mobile pivot. _(B2 onboarding/calibration overlay —
+done; see below.)_
+
+## B2 — Onboarding / calibration overlay  ·  size S  ·  depends M5
+**Status:** Code done 2026-06-21 (live webcam feel-verify pending hardware). This
+is the deferred "A" half of DESIGN decision #8 — "a prettier first-run wrapper
+around the same `neutral = currentPose` call." Recenter (the "B" half) already
+shipped in M6.
+
+**Goal:** make the neutral-pose capture *explicit* so the user knows their resting
+pose is the origin and that they steer by turning away from it — instead of the
+loop silently zeroing on the first tracked frame.
+
+**Approach:**
+- New `calibrating` phase in `useEngine` between `loading` and `ready`. The loop
+  parks the cursor on a centered target and re-pends neutral every frame (delta 0
+  → cursor still; smoother stays warm) for `CALIBRATE.HOLD_SEC`, accumulating only
+  while a face is tracked; the final captured pose becomes the locked neutral, then
+  it flips to `ready`.
+- `config.ts` — new `CALIBRATE.HOLD_SEC` (2.2s; tunable onboarding timing, **not**
+  spike-validated feel, like `RUNTIME`).
+- `app/components/CalibrationOverlay.tsx` — full-screen overlay with a look-at
+  target (dwell-ring conic-gradient written per-frame to `calibRingRef`, no
+  re-render) + a center bullseye + copy + a face-gated status line.
+- `useEngine` — `recenter()` overloaded so `Space` completes calibration
+  immediately; new `recalibrate()` (key `c`) re-enters the overlay; exposes
+  `calibRingRef`. `App` shows the overlay during `calibrating`, keeps the gate off
+  during it, and reveals the camera preview so the user can center their face.
+
+**Files:** `engine/config.ts`, `app/hooks/useEngine.ts`, `app/components/CalibrationOverlay.tsx`, `app/App.tsx`, `index.css`.
+
+**AC:**
+- After the model loads, the overlay appears (not the live cursor) and explains
+  the neutral capture; it does not paint anything.
+- The ring fills over `HOLD_SEC` only while a face is present; losing the face
+  pauses it and swaps the status copy. ✅ states verified headlessly.
+- On completion, neutral is locked to the held pose and the app enters `ready`
+  with the cursor resting at the look target. _Feel needs hardware confirm._
+- `Space` finishes calibration now; `c` re-opens it; instant `Recenter` still
+  re-zeros mid-session.
+- Engine boundary lint still clean; `engine/` imports no React.
 
 ---
 

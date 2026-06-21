@@ -49,6 +49,19 @@ export const DWELL = {
 } as const
 
 /**
+ * Onboarding / calibration (Phase B2 — first-run wrapper around `recenter()`).
+ *
+ * Like RUNTIME below, this is NOT a spike-validated feel constant — it is the
+ * dwell time of the first-run "set your center" overlay (DESIGN decision #8) and
+ * is safe to tune. The overlay simply re-zeros neutral after the user holds a
+ * comfortable pose for HOLD_SEC, so they know their resting pose is the origin.
+ */
+export const CALIBRATE = {
+  /** seconds the user holds a neutral pose while the overlay captures it. */
+  HOLD_SEC: 2.2,
+} as const
+
+/**
  * Runtime resilience thresholds (Phase B1 — robustness).
  *
  * Unlike CURSOR/DWELL, these are NOT spike-validated feel constants — they are

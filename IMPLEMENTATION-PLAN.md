@@ -5,7 +5,7 @@
 - ✅ M1 — Engine: face tracking (done): MediaPipe FaceTracker, pure pose extraction, unit tests, and `/tracking.html` dev harness are in place.
 - ✅ M2 — Engine: velocity cursor (done): `VelocityCursor` (EMA → neutral → deadzone → expo → integrate → clamp) + exported pure `shape()`, 13 Vitest cursor tests.
 - ✅ M3 — Engine: mandala model + generator + first asset (done): `types`, pure `generate()`/`describeRegions()`, the authored floral 8-fold wedge, `floral01` doc + `meta.json`, and the web-only `webView` adapter. 18 new Vitest tests; rendered ACs (8-fold/floral, no overlap, ≥40px regions) verified in-browser via `/mandala.html`.
-- ⏳ M4 — Engine: dwell controller (pending)
+- ✅ M4 — Engine: dwell controller (done): pure `dwellController.pure.ts` (`DwellController` class — must-stop gate, region-keyed progress, decay-on-leave, disarm-after-commit) emitting `selectColor`/`fill`/`erase` events; the canonical `DwellTarget` type now lives here and `webView` re-exports it. 15 new Vitest tests cover every AC.
 - ⏳ M5 — React shell (pending)
 - ⏳ M6 — Integration polish & verify (pending)
 
@@ -119,6 +119,8 @@ Onboarding polish / calibration overlay, accounts/saving, sharing/export, sound,
 - Smallest fillable region encloses a ≥40px circle at 600px render size.
 
 ## M4 — Engine: dwell controller (pure state machine)  ·  size M  ·  depends M2, M3
+**Status:** Done 2026-06-20. Added `engine/mandala/dwellController.pure.ts`: the `DwellController` class ports the `spike/dwell.html` state machine (must-stop gate via `MUST_STOP`, region/swatch progress keyed by `target.key`, decay-on-leave via `DECAY`, disarm-after-commit re-arm latch) as a pure, DOM-free integrator driven by `update({ target, speed, dt, activeColor })`. On completion it returns one event: `selectColor` (any swatch; eraser reports paper), `fill` (region + active color), or `erase` (region while paper/eraser active — paper passed via constructor `{ paper }`, keeping the shell's active color the single source of truth). Reset mode is decay-only (the locked `RESET_MODE`; the `as const` literal also makes an `instant` branch a type error, so the spike's experimental mode is intentionally not shipped). The canonical `DwellTarget` discriminated union now lives in this file; `webView.ts` imports it and re-exports `Target` as an alias. 15 new Vitest tests cover every AC; `typecheck`/`lint`/`test`/`build` green, engine boundary clean. Note: the AC line "eraser target → erase" is realized as documented in the approach text — the eraser swatch emits `selectColor(paper)`, and a subsequent region dwell while paper is active emits `erase` (an `erase` event needs a `group`, which the eraser swatch has none of, so it cannot be emitted at the swatch itself).
+
 **Goal:** the validated dwell loop as a DOM-free state machine.
 
 **Approach:** `engine/mandala/dwellController.pure.ts`. Input each tick: `{ targetKey, targetMeta, speed, dt, activeColor }`. Logic per DISCOVERY §4 / `dwell.html`: must-stop gate (accumulate only when `speed < MUST_STOP`), region-based progress keyed by `targetKey`, **decay** reset (`DECAY`) on leaving, `disarm` after commit until target left. On completion, return an **event**: `{ kind:'fill', group, color }`, `{ kind:'erase', group }`, or `{ kind:'selectColor', color }` (swatch). Output: `{ progress, charging, event? }`. The controller never touches the DOM; the shell maps events to `webView.fillGroup/eraseGroup` and palette state.

@@ -12,9 +12,9 @@ Webapp where you color mandalas **hands-free, steering the cursor with your head
 Before starting implementation work, check the top **Progress tracker** in [IMPLEMENTATION-PLAN.md](IMPLEMENTATION-PLAN.md). When you finish, partially finish, defer, or unblock a milestone, update that tracker first and keep the milestone's local status note consistent.
 
 ## Status
-Planning + de-risking **done**. M0 scaffold/tooling, M1 face tracking, M2 velocity cursor, and M3 mandala model + generator + first floral asset are **done**. Two throwaway spikes (`spike/index.html`, `spike/dwell.html`) **validated the core mechanics on real hardware**. Validated tuning lives in DISCOVERY §4.
+Planning + de-risking **done**. M0 scaffold/tooling, M1 face tracking, M2 velocity cursor, M3 mandala model + generator + first floral asset, and M4 dwell controller (pure state machine) are **done**. Two throwaway spikes (`spike/index.html`, `spike/dwell.html`) **validated the core mechanics on real hardware**. Validated tuning lives in DISCOVERY §4.
 
-**Next action:** execute **[IMPLEMENTATION-PLAN.md](IMPLEMENTATION-PLAN.md) M4** (pure dwell controller state machine), then M5 (React shell) → M6 (polish & verify). The mandala engine (`src/engine/mandala/`) and the first floral 8-fold asset already render; preview the generated mandala at `vite dev` → `/mandala.html`.
+**Next action:** execute **[IMPLEMENTATION-PLAN.md](IMPLEMENTATION-PLAN.md) M5** (React shell: `useEngine` rAF loop wiring tracker → cursor → `webView.resolveTargetAt` → `dwellController` → apply events; camera gate; palette dock), then M6 (polish & verify). The whole engine (`src/engine/`) is now in place and unit-tested; the first floral 8-fold asset renders at `vite dev` → `/mandala.html`.
 
 ## Hard rules
 - `engine/` imports **nothing** from React (portability for the mobile pivot).

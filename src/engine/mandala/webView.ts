@@ -16,12 +16,17 @@
  * Part of `engine/` — imports nothing from React.
  */
 
+import type { DwellTarget } from './dwellController.pure'
+
 const PAPER_FALLBACK = '#f4efe6'
 
-/** What the cursor is currently over, normalized for the dwell controller. */
-export type Target =
-  | { kind: 'region'; key: string; group: string }
-  | { kind: 'swatch'; key: string; color: string; erase: boolean }
+/**
+ * What the cursor is currently over, normalized for the dwell controller. The
+ * canonical shape lives in `dwellController.pure.ts` (the consumer); this adapter
+ * just produces it, so the shell can pipe `resolveTargetAt` straight into the
+ * controller. Re-exported here for callers that only touch the web adapter.
+ */
+export type Target = DwellTarget
 
 export interface MountOptions {
   /** Paper color the eraser resets to. Defaults to the mandala's `paper`. */

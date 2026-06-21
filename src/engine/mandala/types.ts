@@ -41,10 +41,31 @@ export interface WedgeCenter {
   d?: string
 }
 
+/**
+ * Decorative, NON-fillable linework (MANDALA-SPEC §4): each entry is a raw SVG
+ * element string in viewBox coordinates (e.g. `<line .../>` spokes, a `<circle/>`
+ * frame ring). The generator renders these in a top `pointer-events:none` layer,
+ * so they read as outline but never intercept the cursor or get filled — unlike
+ * `WedgeShape`, decor carries no `data-symmetry-group`. Color/width come from the
+ * decor layer (the region stroke), but any element may override with its own
+ * `stroke-width`. Keep `fill` off unless the element should read as solid.
+ */
+export type WedgeDecor = string
+
 /** One authored sector: the shapes that get rotate-copied, plus the center. */
 export interface WedgeMotif {
   shapes: WedgeShape[]
   center?: WedgeCenter
+  /**
+   * Decor rotate-copied ×N alongside the regions (e.g. one spoke per wedge).
+   * Same rotation as `shapes`, but emitted in the non-fillable decor layer.
+   */
+  decor?: WedgeDecor[]
+  /**
+   * Decor emitted exactly once, NOT rotated — for elements already symmetric
+   * about the center (e.g. the outer frame ring or an inner circle).
+   */
+  staticDecor?: WedgeDecor[]
 }
 
 /** A single fillable region in the generated mandala. */
